@@ -1,6 +1,2 @@
-# Отключаем виртуальное окружение
-.bar_bot.venv/
-venv/
-.env
-__pycache__/
-*.pyc
+# created by virtualenv automatically
+*
