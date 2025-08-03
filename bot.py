@@ -2,15 +2,13 @@ import os
 import json
 import logging
 import json
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, Dispatcher
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils import executor
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from functools import wraps
-from aiogram.types import Message, CallbackQuery
-
 from aiogram import types
 import json
 
