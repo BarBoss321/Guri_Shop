@@ -117,7 +117,7 @@ def save_user_ids(user_ids):
 
 
 # === /a ADMIN PANEL ===
-@dp.message_handler(commands=['a'])
+@dp.message_handler(commands=['a'], state='*')
 @user_allowed
 async def admin_panel(message: types.Message):
     if message.from_user.id != ADMIN_ID:
