@@ -2,16 +2,22 @@ import os
 import json
 import logging
 import json
+from aiogram import Bot, Dispatcher, types
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.utils import executor
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from aiogram.dispatcher import FSMContext
+from aiogram.dispatcher.filters.state import State, StatesGroup
+from functools import wraps
+from aiogram.types import Message, CallbackQuery
+
+from aiogram import types
+import json
 
 with open("allowed_users.json", "r", encoding="utf-8") as f:
     ALLOWED_USERS = json.load(f)
 
 print("Загруженные пользователи:", ALLOWED_USERS)  # отладка
-
-
-from aiogram.types import Message, CallbackQuery
-from functools import wraps
-import json
 
 def user_allowed(handler):
     @wraps(handler)
@@ -36,15 +42,6 @@ def user_allowed(handler):
 
     return wrapper
 
-
-from aiogram import Bot, Dispatcher, types
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.utils import executor
-from aiogram.contrib.fsm_storage.memory import MemoryStorage
-from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters.state import State, StatesGroup
-from functools import wraps
-from aiogram.types import Message, CallbackQuery
 
 # === CONFIG ===
 API_TOKEN = '7624412290:AAGokkVMcvIWXl-jizLsG9vgoP2RYLvinZI'
