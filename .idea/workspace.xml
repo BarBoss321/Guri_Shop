@@ -5,33 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="09d7194d-8a75-4d58-bcdb-a99e6c93d0cf" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.env" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.girignore" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/Guri_Shop_2.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/admin/admin_handlers.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/config.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/filters/access.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/handlers/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/handlers/callbacks.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/handlers/cart_handlers.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/handlers/cart_view.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/handlers/catalog_handlers.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/handlers/fsm_example.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/handlers/start.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/handlers/user_handlers.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/keyboards/catalog.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/keyboards/inline.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/requirements" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/services/db.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/services/helpers.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/shop_bot.db" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/shop_bot.sqbpro" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/states/cart_states.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/states/example_state.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/bot.py" beforeDir="false" afterPath="$PROJECT_DIR$/bot.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -56,14 +30,15 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "Python.bot.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "Rebasing main"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;Python.bot.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;
   }
-}]]></component>
+}</component>
   <component name="RunManager">
     <configuration name="bot" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="Guri_Shop_2" />
