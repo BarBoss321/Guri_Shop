@@ -37,7 +37,10 @@ async def on_startup(bot: Bot):
 async def main():
     logging.basicConfig(level=logging.INFO)
 
-    bot = Bot(token=BOT_TOKEN, parse_mode="HTML")
+    bot = Bot(
+        token=BOT_TOKEN,
+        default=DefaultBotProperties(parse_mode="HTML")
+    )
 
     # FSM-хранилище в Redis
     redis = aioredis.from_url(REDIS_URL)
