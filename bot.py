@@ -14,7 +14,8 @@ from services.db import get_due_followups, order_with_items, mark_followup_sent,
 from handlers import user_handlers, catalog_handlers, cart_handlers, cart_view
 from admin import admin_handlers
 from services.db import ensure_schema, abs_db_path
-import handlers.followup_handlers as followup_handlers
+from handlers import followup_handlers
+from handlers.followup_handlers import followup_worker
 
 
 # --- Загружаем .env ---
@@ -35,7 +36,8 @@ assert BOT_TOKEN, "BOT_TOKEN is empty (set it in .env)"
 
 # --- on_startup ---
 async def on_startup(bot: Bot):
-    print("Preparing DB at:", abs_db_path())
+    print("Starting followup worker…")
+    asyncio.create_task(followup_worker(bot))
     await ensure_schema()
 
 # --- main ---
@@ -63,7 +65,6 @@ async def main():
     dp.include_router(cart_view.router)
     dp.include_router(followup_handlers.router)  # где вы разместили хэндлеры
 
-    dp.startup.register(on_startup)
     dp.startup.register(on_startup)
 
     # стартуем фонового работника после запуска
