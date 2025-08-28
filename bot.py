@@ -2,7 +2,7 @@ import asyncio
 import logging
 import os
 from pathlib import Path
-
+from aiogram.client.default import DefaultBotProperties
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.redis import RedisStorage, DefaultKeyBuilder
 import redis.asyncio as aioredis
@@ -37,7 +37,10 @@ async def on_startup(bot: Bot):
 async def main():
     logging.basicConfig(level=logging.INFO)
 
-    bot = Bot(token=BOT_TOKEN, parse_mode="HTML")
+    bot = Bot(
+        token=BOT_TOKEN,
+        default=DefaultBotProperties(parse_mode="HTML")
+    )
 
     # FSM-хранилище в Redis
     redis = aioredis.from_url(REDIS_URL)
