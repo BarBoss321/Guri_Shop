@@ -4,6 +4,7 @@ from aiogram.fsm.context import FSMContext
 from states.cart_states import CartStates
 from services.db import get_db
 from collections import defaultdict
+from services.db import create_followup
 import asyncio
 from config import ADMIN_ID
 # 👉 вынеси в config.py и импортируй оттуда
@@ -189,6 +190,25 @@ async def handle_company_selection(callback: CallbackQuery, state: FSMContext):
         WHERE c.user_id = ?
     """, (user_id,))
     await db.commit()
+
+    # 👉 перенос позиций в историю заказов (orders)
+    await db.execute("""
+            INSERT INTO orders(user_id, item_id, quantity)
+            SELECT c.user_id, c.item_id, c.quantity
+            FROM cart c
+            WHERE c.user_id = ?
+        """, (user_id,))
+    await db.commit()
+
+    # получаем id только что созданной заявки
+    cur = await db.execute("SELECT last_insert_rowid()")
+    new_order_id = (await cur.fetchone())[0]
+
+    # создаём followup-задачу на завтра
+    create_followup(order_id=new_order_id,
+                    user_id=user_id,
+                    chat_id=callback.message.chat.id,
+                    delay_days=1)
 
     # (опционально) самопроверка: сколько записей у пользователя за сегодня
     cur = await db.execute(
