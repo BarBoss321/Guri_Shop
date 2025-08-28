@@ -1,7 +1,6 @@
 import asyncio
 import logging
 from aiogram import Bot, Dispatcher
-from aiogram.fsm.storage.memory import MemoryStorage
 from handlers import user_handlers, catalog_handlers, cart_handlers, cart_view
 from admin import admin_handlers
 from pathlib import Path
