@@ -4,6 +4,9 @@ from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from handlers import user_handlers, catalog_handlers, cart_handlers, cart_view
 from admin import admin_handlers
+from pathlib import Path
+from aiogram.fsm.storage.sqlite import SQLiteStorage
+
 
 # ✅ это важно
 from services.db import ensure_schema, abs_db_path
@@ -22,8 +25,13 @@ async def on_startup(bot: Bot):
 
 async def main():
     logging.basicConfig(level=logging.INFO)
-    bot = Bot(token=BOT_TOKEN)
-    dp = Dispatcher(storage=MemoryStorage())
+
+    bot = Bot(token=BOT_TOKEN)  # можно добавить parse_mode, если нужно
+    # --- FSM в файле рядом с bot.py ---
+    base_dir = Path(__file__).parent
+    fsm_path = base_dir / "fsm.sqlite"
+    storage = SQLiteStorage(path=str(fsm_path))
+    dp = Dispatcher(storage=storage)
 
     # хендлеры
     dp.include_router(user_handlers.router)
@@ -32,11 +40,14 @@ async def main():
     dp.include_router(cart_handlers.router)
     dp.include_router(cart_view.router)
 
-    # регистрируем стартовый хук
+    # стартовый хук
     dp.startup.register(on_startup)
 
-    await bot.delete_webhook(drop_pending_updates=True)
-    await dp.start_polling(bot)
+    # НЕ сбрасываем накопившиеся апдейты при переходе с вебхука на пуллинг
+    await bot.delete_webhook(drop_pending_updates=False)
+
+    # увеличим таймаут long-polling — устойчивее к обрывам
+    await dp.start_polling(bot, polling_timeout=60)
 
 
 
