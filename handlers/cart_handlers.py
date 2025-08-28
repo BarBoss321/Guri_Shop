@@ -154,7 +154,7 @@ async def handle_company_selection(callback: CallbackQuery, state: FSMContext):
 
     db = await get_db()
 
-    # содержимое корзины
+    # 1) читаем корзину
     cur = await db.execute("""
         SELECT i.id, i.name, c.quantity, i.supplier
         FROM cart c
@@ -169,38 +169,39 @@ async def handle_company_selection(callback: CallbackQuery, state: FSMContext):
         await callback.message.edit_text("🛒 Корзина пуста.")
         return await callback.answer()
 
-    # 1) создаём заголовок заявки
-    await db.execute(
-        "INSERT INTO orders(user_id, chat_id) VALUES(?, ?)",
+    # 2) создаём шапку заказа (ТУТ НЕТ item_id/quantity!)
+    cur = await db.execute(
+        "INSERT INTO orders(user_id, chat_id) VALUES (?, ?)",
         (user_id, chat_id)
     )
-    cur = await db.execute("SELECT last_insert_rowid()")
-    order_id = (await cur.fetchone())[0]
+    # id только что созданного заказа
+    order_id = cur.lastrowid
 
-    # 2) вставляем позиции в order_items
+    # 3) кладём позиции в order_items
     await db.executemany(
-        "INSERT INTO order_items(order_id, title, qty) VALUES(?,?,?)",
-        [(order_id, name, qty) for (_id, name, qty, _sup) in rows]
+        "INSERT INTO order_items(order_id, title, qty) VALUES (?,?,?)",
+        [(order_id, name, qty) for (_item_id, name, qty, _sup) in rows]
     )
     await db.commit()
 
-    # 3) уведомляем админа (как у вас было)
+    # 4) сообщение админу (как было)
     grouped = defaultdict(list)
     for _id, item_name, qty, supplier in rows:
         grouped[(supplier or "❓ Без поставщика")].append(f"{item_name} — {qty} шт.")
-
-    text = (f"🧑‍💼Новая заявка от <b><code>{user_id}</code></b>\n"
-            f"📦<b>ООО {company_name}</b>\n\n")
+    text = (
+        f"🧑‍💼Новая заявка от <b><code>{user_id}</code></b>\n"
+        f"📦<b>ООО {company_name}</b>\n\n"
+    )
     for supplier, goods in grouped.items():
         text += f"<b>{supplier}</b>:\n" + "\n".join(f"▪️ {g}" for g in goods) + "\n\n"
     await callback.bot.send_message(chat_id=ADMIN_ID, text=text, parse_mode="HTML")
 
-    # 4) чистим корзину
+    # 5) чистим корзину
     await db.execute("DELETE FROM cart WHERE user_id = ?", (user_id,))
     await db.commit()
     await db.close()
 
-    # 5) создаём фоллоуап на следующий день
+    # 6) создаём фоллоуап на завтра (бот сам знает user/chat id)
     create_followup(order_id=order_id, user_id=user_id, chat_id=chat_id, delay_days=1)
 
     await callback.message.edit_text("✅ Заявка отправлена администратору. Корзина очищена.")
