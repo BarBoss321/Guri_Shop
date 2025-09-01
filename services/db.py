@@ -92,10 +92,6 @@ async def fetch_order_items(order_id: int):
     await db.close()
     return rows
 
-def get_last_orders(user_id: int, limit: int = 3):
-    """Alias для старых импортов."""
-    return get_last_orders_with_items(user_id, limit)
-
 def get_last_orders_with_items(user_id: int, limit: int = 3):
     """
     Возвращает строки формата: (order_id, created_at, item_name, qty)
