@@ -14,8 +14,8 @@ def connect():
 # --- ИСТОРИЯ ЗАКАЗОВ: последние N записей из orders (без order_items) ---
 def get_last_grouped_orders(user_id: int, limit: int = 3):
     """
-    Возвращает последние N заказов пользователя, сгруппированные по заказу.
-    Формат: (order_id, created_at, items_concat)
+    Последние N заказов пользователя, сгруппированные по заказу.
+    items_concat — все позиции заказа в одну строку, разделитель '||'
     """
     conn = connect()
     cur = conn.cursor()
@@ -24,7 +24,7 @@ def get_last_grouped_orders(user_id: int, limit: int = 3):
         SELECT
             o.id AS order_id,
             COALESCE(o.created_at, o.order_date, '') AS created_at,
-            GROUP_CONCAT(i.name  ' × '  oi.quantity, '||') AS items_concat
+            GROUP_CONCAT(printf('%s × %d', i.name, oi.quantity), '||') AS items_concat
         FROM orders o
         JOIN order_items oi ON oi.order_id = o.id
         JOIN items       i  ON i.id       = oi.item_id
@@ -38,6 +38,10 @@ def get_last_grouped_orders(user_id: int, limit: int = 3):
     rows = cur.fetchall()
     conn.close()
     return rows
+
+# если где-то вызывают старое имя:
+def get_last_orders(user_id: int, limit: int = 3):
+    return get_last_grouped_orders(user_id, limit)
 
 # на всякий случай, если где-то вызывалась «старая» функция
 def get_last_orders_with_items(user_id: int, limit: int = 3):
