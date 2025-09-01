@@ -14,27 +14,36 @@ def connect():
 # --- ИСТОРИЯ ЗАКАЗОВ: последние N записей из orders (без order_items) ---
 def get_last_grouped_orders(user_id: int, limit: int = 3):
     """
-    Последние N заказов пользователя, сгруппированные по заказу.
-    items_concat — все позиции заказа в одну строку, разделитель '||'
+    Возвращает последние 'limit' заказов пользователя, где заказ — это
+    все строки из orders с одинаковым временем (created_at ИЛИ order_date).
+    Поле времени выбираем: сначала created_at, если его нет — order_date.
     """
-    conn = connect()
+    conn = sqlite3.connect("shop_bot.db")
+    conn.row_factory = sqlite3.Row
     cur = conn.cursor()
-    cur.execute(
-        """
+
+    cur.execute("""
+        WITH o AS (
+            SELECT
+                id,
+                user_id,
+                item_id,
+                quantity,
+                COALESCE(created_at, order_date) AS ts
+            FROM orders
+            WHERE user_id = ?
+        )
         SELECT
-            o.id AS order_id,
-            COALESCE(o.created_at, o.order_date, '') AS created_at,
-            GROUP_CONCAT(printf('%s × %d', i.name, oi.quantity), '||') AS items_concat
-        FROM orders o
-        JOIN order_items oi ON oi.order_id = o.id
-        JOIN items       i  ON i.id       = oi.item_id
-        WHERE o.user_id = ?
-        GROUP BY o.id
-        ORDER BY datetime(created_at) DESC, o.id DESC
+            MIN(o.id)                        AS order_no,           -- номер группы (минимальный id)
+            ts                                AS created_at,         -- время заказа
+            GROUP_CONCAT(i.name  ' × '  o.quantity, '||') AS items_join
+        FROM o
+        JOIN items i ON i.id = o.item_id
+        GROUP BY ts
+        ORDER BY datetime(ts) DESC
         LIMIT ?
-        """,
-        (user_id, limit)
-    )
+    """, (user_id, limit))
+
     rows = cur.fetchall()
     conn.close()
     return rows
