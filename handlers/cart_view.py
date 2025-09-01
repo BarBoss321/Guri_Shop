@@ -370,7 +370,6 @@ async def remove_selected_item(callback: CallbackQuery):
         [InlineKeyboardButton(text="✏️ Изменить количество", callback_data="edit_mode")],
         [InlineKeyboardButton(text="❌ Удалить позицию", callback_data="remove_mode")],
         [InlineKeyboardButton(text="✅ Подтвердить заказ", callback_data="submit_cart")],
-        [InlineKeyboardButton(text="🗂️ История заказов", callback_data="history_orders")],
         [InlineKeyboardButton(text="🔙 Назад в меню", callback_data="back_to_menu")]
     ])
 
@@ -454,6 +453,7 @@ async def back_to_menu(callback: CallbackQuery, state: FSMContext):
     rows.append([
         InlineKeyboardButton(text="🛒 Корзина", callback_data="view_cart"),
         InlineKeyboardButton(text="🔥 Популярное", callback_data="popular"),
+        InlineKeyboardButton(text="🗂️ История заказов", callback_data="history_orders")
     ])
     # На корне кнопки «Назад» нет — это и нужно
 
