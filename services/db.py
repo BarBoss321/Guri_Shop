@@ -92,41 +92,48 @@ async def fetch_order_items(order_id: int):
     await db.close()
     return rows
 
-def get_last_orders_with_items(user_id: int, limit: int = 3):
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+DB_PATH = os.getenv("DB_PATH", str(BASE_DIR / "shop_bot.db"))
+
+def connect():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row  # чтобы по именам колонок брать
+    return conn
+
+
+# --- ИСТОРИЯ ЗАКАЗОВ: последние N записей из orders (без order_items) ---
+def get_last_orders(user_id: int, limit: int = 3):
     """
-    Возвращает строки формата: (order_id, created_at, item_name, qty)
-    только по последним N заказам пользователя.
+    Возвращает строки формата:
+      (order_id, created_at, item_name, qty)
+    по последним N записям из orders данного пользователя.
+    В этой схеме каждая запись orders = одна позиция (item_id, quantity).
     """
     conn = connect()
     cur = conn.cursor()
     cur.execute("""
-        SELECT o.id            AS order_id,
-               COALESCE(o.created_at,'') AS created_at,
-               i.name         AS item_name,
-               oi.quantity    AS qty    -- если у тебя колонка называется 'qty', поменяй на oi.qty
+        SELECT
+            o.id                                AS order_id,
+            COALESCE(o.created_at, o.order_date, '') AS created_at,
+            i.name                              AS item_name,
+            o.quantity                          AS qty
         FROM orders o
-        JOIN order_items oi ON oi.order_id = o.id
-        JOIN items i       ON i.id       = oi.item_id
+        JOIN items  i ON i.id = o.item_id
         WHERE o.user_id = ?
-          AND o.id IN (
-              SELECT id FROM orders
-              WHERE user_id = ?
-              ORDER BY datetime(created_at) DESC, id DESC
-              LIMIT ?
-          )
-        ORDER BY datetime(o.created_at) DESC, o.id DESC, oi.id ASC
-    """, (user_id, user_id, limit))
+        ORDER BY
+            CASE
+              WHEN o.created_at IS NOT NULL AND o.created_at <> '' THEN datetime(o.created_at)
+              WHEN o.order_date IS NOT NULL  AND o.order_date  <> '' THEN datetime(o.order_date)
+              ELSE datetime('now')
+            END DESC,
+            o.id DESC
+        LIMIT ?
+    """, (user_id, limit))
     rows = cur.fetchall()
     conn.close()
     return rows
-try:
-    get_last_orders  # если уже есть — ничего не делаем
-except NameError:
-    # подставь сюда ту функцию, которая реально существует у тебя
-    from services.db import get_last_orders_with_items as _impl  # если она у тебя есть
-    # ИЛИ
-    # from services.db import fetch_last_orders as _impl
 
-    def get_last_orders(user_id: int, limit: int = 3):
-        """Совместимость со старым импортом."""
-        return _impl(user_id, limit)
+# на всякий случай, если где-то вызывалась «старая» функция
+def get_last_orders_with_items(user_id: int, limit: int = 3):
+    return get_last_orders(user_id, limit)
