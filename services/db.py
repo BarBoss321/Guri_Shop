@@ -14,9 +14,8 @@ def connect():
 # --- ИСТОРИЯ ЗАКАЗОВ: последние N записей из orders (без order_items) ---
 def get_last_grouped_orders(user_id: int, limit: int = 3):
     """
-    Возвращает последние N заказов пользователя с объединёнными позициями.
-    Формат строки: (order_id, created_at, items_concat)
-    где items_concat = "Товар1 × 2||Товар2 × 5||..."
+    Возвращает последние N заказов пользователя, сгруппированные по заказу.
+    Формат: (order_id, created_at, items_concat)
     """
     conn = connect()
     cur = conn.cursor()
@@ -34,7 +33,7 @@ def get_last_grouped_orders(user_id: int, limit: int = 3):
         ORDER BY datetime(created_at) DESC, o.id DESC
         LIMIT ?
         """,
-        (user_id, limit)   # <-- только "?" плейсхолдеры, никаких ":limit"
+        (user_id, limit)
     )
     rows = cur.fetchall()
     conn.close()
