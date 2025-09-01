@@ -45,6 +45,5 @@ async def build_root_keyboard():
     buttons.append([
         InlineKeyboardButton(text="🛒 Корзина", callback_data="view_cart"),
         InlineKeyboardButton(text="🔥 Популярное", callback_data="popular"),
-        InlineKeyboardButton(text="История", callback_data="history_orders"),
     ])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
