@@ -12,21 +12,28 @@ def connect():
     return conn
 
 # --- ИСТОРИЯ ЗАКАЗОВ: последние N записей из orders (без order_items) ---
-def get_last_orders(user_id: int, limit: int = 3):
+def get_last_grouped_orders(user_id: int, limit: int = 3):
+    """
+    Возвращает последние N заявок пользователя,
+    где каждая заявка уже собрана из нескольких позиций.
+    """
     conn = connect()
     cur = conn.cursor()
-    cur.execute("""
+    cur.execute(
+        """
         SELECT
-            o.id            AS order_id,
-            o.order_date    AS created_at,
-            i.name          AS item_name,
-            o.quantity      AS qty
+            MIN(o.id) AS order_id,                -- просто отображаемый номер
+            COALESCE(o.created_at, o.order_date) AS created_at,
+            GROUP_CONCAT(i.name  ' × '  o.quantity, '\n• ') AS items
         FROM orders o
-        JOIN items i ON i.id = o.item_id
+        JOIN items  i ON i.id = o.item_id
         WHERE o.user_id = ?
-        ORDER BY datetime(o.order_date) DESC, o.id DESC
+        GROUP BY COALESCE(o.created_at, o.order_date)
+        ORDER BY datetime(COALESCE(o.created_at, o.order_date)) DESC, order_id DESC
         LIMIT ?
-    """, (user_id, limit))
+        """,
+        (user_id, limit)
+    )
     rows = cur.fetchall()
     conn.close()
     return rows

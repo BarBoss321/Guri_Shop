@@ -5,22 +5,19 @@ from services.db import get_last_orders
 router = Router()
 
 @router.callback_query(F.data == "history_orders")
-async def show_history(c: CallbackQuery):
-    user_id = c.from_user.id
-    rows = get_last_orders(user_id, limit=3)   # СИНХРОННАЯ функция — БЕЗ await
+async def show_history(callback: CallbackQuery):
+    user_id = callback.from_user.id
+    orders = get_last_grouped_orders(user_id, limit=3)
 
-    if not rows:
-        await c.message.answer("📭 История пуста: ещё не было заявок.")
-        await c.answer()
+    if not orders:
+        await callback.message.edit_text("🧾 История пуста.")
+        await callback.answer()
         return
 
-    lines = ["🧾 <b>Ваши последние заявки</b>:\n"]
-    for r in rows:
-        order_id  = r["order_id"]
-        created   = r["created_at"] or ""
-        item_name = r["item_name"]
-        qty       = r["qty"]
-        lines.append(f"📦 <code>#{order_id}</code> от {created}\n • {item_name} × {qty}")
+    lines = ["🧾 <b>Ваши последние заявки:</b>\n"]
+    for order_id, created_at, items_text in orders:
+        lines.append(f"📦 <b>#{order_id}</b> от {created_at}\n• {items_text}\n")
 
-    await c.message.answer("\n\n".join(lines), parse_mode="HTML")
-    await c.answer()
+    text = "\n".join(lines).strip()
+    await callback.message.edit_text(text, parse_mode="HTML")
+    await callback.answer()
