@@ -13,30 +13,18 @@ def connect():
 
 # --- ИСТОРИЯ ЗАКАЗОВ: последние N записей из orders (без order_items) ---
 def get_last_orders(user_id: int, limit: int = 3):
-    """
-    Возвращает строки формата:
-      (order_id, created_at, item_name, qty)
-    по последним N записям из orders данного пользователя.
-    В этой схеме каждая запись orders = одна позиция (item_id, quantity).
-    """
     conn = connect()
     cur = conn.cursor()
     cur.execute("""
         SELECT
-            o.id                                AS order_id,
-            COALESCE(o.created_at, o.order_date, '') AS created_at,
-            i.name                              AS item_name,
-            o.quantity                          AS qty
+            o.id            AS order_id,
+            o.order_date    AS created_at,
+            i.name          AS item_name,
+            o.quantity      AS qty
         FROM orders o
-        JOIN items  i ON i.id = o.item_id
+        JOIN items i ON i.id = o.item_id
         WHERE o.user_id = ?
-        ORDER BY
-            CASE
-              WHEN o.created_at IS NOT NULL AND o.created_at <> '' THEN datetime(o.created_at)
-              WHEN o.order_date IS NOT NULL  AND o.order_date  <> '' THEN datetime(o.order_date)
-              ELSE datetime('now')
-            END DESC,
-            o.id DESC
+        ORDER BY datetime(o.order_date) DESC, o.id DESC
         LIMIT ?
     """, (user_id, limit))
     rows = cur.fetchall()
