@@ -2,26 +2,37 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery
 from aiogram.utils.markdown import hbold, hcode
 from services.db import fetch_last_orders, fetch_order_items
+from services.db import get_last_orders_with_items
 
 router = Router()
 
 @router.callback_query(F.data == "history_orders")
-async def show_history(callback: CallbackQuery):
-    user_id = callback.from_user.id
+async def show_history(c: CallbackQuery):
+    user_id = c.from_user.id
 
-    orders = await fetch_last_orders(user_id, limit=3)
-    if not orders:
-        await callback.message.edit_text("🧾 История пуста: ещё не было заявок.")
-        await callback.answer()
+    rows = get_last_orders_with_items(user_id, limit=3)  # синхронная функция -> БЕЗ await
+    if not rows:
+        await c.message.answer("📭 История пуста: ещё не было заявок.")
+        await c.answer()
         return
 
-    parts = ["🧾 " + hbold("Ваши последние заявки:") + "\n"]
-    for o in orders:
-        head = f"— Заявка #{hcode(str(o['id']))} от {o['created_at'] or ''}:"
-        items = await fetch_order_items(o["id"])
-        body = "\n".join([f"   • {row['title']} × {row['qty']}" for row in items]) or "   • (пусто)"
-        parts.append(head + "\n" + body + "\n")
+    # группируем позиции по заказу
+    lines = ["🧾 <b>Ваши последние заявки</b>:\n"]
+    cur_order_id = None
+    bucket = []
 
-    text = "\n".join(parts)
-    await callback.message.edit_text(text, parse_mode="HTML")
-    await callback.answer()
+    def flush():
+        if bucket:
+            lines.append("\n".join(bucket))
+
+    for order_id, created_at, item_name, qty in rows:
+        if order_id != cur_order_id:
+            flush()
+            cur_order_id = order_id
+            bucket = [f"📦 Заявка <code>#{order_id}</code> от {created_at or ''}"]
+        bucket.append(f" • {item_name} × {qty}")
+
+    flush()
+    text = "\n\n".join(lines)
+    await c.message.answer(text, parse_mode="HTML")
+    await c.answer()

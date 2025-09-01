@@ -90,18 +90,30 @@ async def fetch_order_items(order_id: int):
     return rows
 
 
-async def get_last_orders(user_id: int):
+def get_last_orders_with_items(user_id: int, limit: int = 3):
+    """
+    Возвращает строки формата: (order_id, created_at, item_name, qty)
+    только по последним N заказам пользователя.
+    """
     conn = connect()
     cur = conn.cursor()
     cur.execute("""
-        SELECT o.id, o.created_at, i.name, oi.qty
+        SELECT o.id            AS order_id,
+               COALESCE(o.created_at,'') AS created_at,
+               i.name         AS item_name,
+               oi.quantity    AS qty    -- если у тебя колонка называется 'qty', поменяй на oi.qty
         FROM orders o
-        JOIN order_items oi ON o.id = oi.order_id
-        JOIN items i ON oi.item_id = i.id
+        JOIN order_items oi ON oi.order_id = o.id
+        JOIN items i       ON i.id       = oi.item_id
         WHERE o.user_id = ?
-        ORDER BY o.created_at DESC
-        LIMIT 3
-    """, (user_id,))
+          AND o.id IN (
+              SELECT id FROM orders
+              WHERE user_id = ?
+              ORDER BY datetime(created_at) DESC, id DESC
+              LIMIT ?
+          )
+        ORDER BY datetime(o.created_at) DESC, o.id DESC, oi.id ASC
+    """, (user_id, user_id, limit))
     rows = cur.fetchall()
     conn.close()
     return rows
