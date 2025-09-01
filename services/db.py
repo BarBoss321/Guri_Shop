@@ -14,11 +14,11 @@ def connect():
 # --- ИСТОРИЯ ЗАКАЗОВ: последние N записей из orders (без order_items) ---
 def get_last_grouped_orders(user_id: int, limit: int = 3):
     """
-    Возвращает последние 'limit' заказов пользователя, где заказ — это
-    все строки из orders с одинаковым временем (created_at ИЛИ order_date).
-    Поле времени выбираем: сначала created_at, если его нет — order_date.
+    Группируем строки orders по времени (created_at или order_date)
+    и отдаём последние N групп. Список позиций собираем ASCII-строками,
+    а красивый вид делаем уже в Python.
     """
-    conn = sqlite3.connect("shop_bot.db")
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
@@ -34,9 +34,10 @@ def get_last_grouped_orders(user_id: int, limit: int = 3):
             WHERE user_id = ?
         )
         SELECT
-            MIN(o.id)                        AS order_no,           -- номер группы (минимальный id)
-            ts                                AS created_at,         -- время заказа
-            GROUP_CONCAT(i.name  ' × '  o.quantity, '||') AS items_join
+            MIN(o.id) AS order_no,
+            ts        AS created_at,
+            -- собираем "имя:кол-во" через ASCII-разделители
+            GROUP_CONCAT(i.name  ':'  o.quantity, '||') AS items_join
         FROM o
         JOIN items i ON i.id = o.item_id
         GROUP BY ts
