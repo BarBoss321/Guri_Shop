@@ -1,6 +1,6 @@
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
-from services.db import get_last_orders
+from services.db import get_last_grouped_orders
 
 router = Router()
 
