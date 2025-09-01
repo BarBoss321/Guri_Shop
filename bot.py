@@ -7,7 +7,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.redis import RedisStorage, DefaultKeyBuilder
 import redis.asyncio as aioredis
 from dotenv import load_dotenv
-
+from handlers import history_handlers
 from handlers import user_handlers, catalog_handlers, cart_handlers, cart_view
 from admin import admin_handlers
 from services.db import ensure_schema, abs_db_path
@@ -56,6 +56,7 @@ async def main():
     dp.include_router(catalog_handlers.router)
     dp.include_router(cart_handlers.router)
     dp.include_router(cart_view.router)
+    dp.include_router(history_handlers.router)
 
     dp.startup.register(on_startup)
 

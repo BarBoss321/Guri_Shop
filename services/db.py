@@ -1,9 +1,51 @@
 import aiosqlite
+import os
+import sqlite3
+from pathlib import Path
 
-DB_PATH = "shop_bot.db"
+BASE_DIR = Path(__file__).resolve().parent.parent
+DB_PATH = os.getenv("DB_PATH", str(BASE_DIR / "shop_bot.db"))
 
-async def get_db():
-    return await aiosqlite.connect(DB_PATH)
+def connect():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row  # чтобы по именам колонок брать
+    return conn
+
+# --- ИСТОРИЯ ЗАКАЗОВ: последние N записей из orders (без order_items) ---
+def get_last_orders(user_id: int, limit: int = 3):
+    """
+    Возвращает строки формата:
+      (order_id, created_at, item_name, qty)
+    по последним N записям из orders данного пользователя.
+    В этой схеме каждая запись orders = одна позиция (item_id, quantity).
+    """
+    conn = connect()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT
+            o.id                                AS order_id,
+            COALESCE(o.created_at, o.order_date, '') AS created_at,
+            i.name                              AS item_name,
+            o.quantity                          AS qty
+        FROM orders o
+        JOIN items  i ON i.id = o.item_id
+        WHERE o.user_id = ?
+        ORDER BY
+            CASE
+              WHEN o.created_at IS NOT NULL AND o.created_at <> '' THEN datetime(o.created_at)
+              WHEN o.order_date IS NOT NULL  AND o.order_date  <> '' THEN datetime(o.order_date)
+              ELSE datetime('now')
+            END DESC,
+            o.id DESC
+        LIMIT ?
+    """, (user_id, limit))
+    rows = cur.fetchall()
+    conn.close()
+    return rows
+
+# на всякий случай, если где-то вызывалась «старая» функция
+def get_last_orders_with_items(user_id: int, limit: int = 3):
+    return get_last_orders(user_id, limit)
 
 async def create_companies_table():
     db = await get_db()

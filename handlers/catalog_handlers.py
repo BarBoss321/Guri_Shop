@@ -50,7 +50,7 @@ async def handle_category(callback: CallbackQuery):
 
         buttons.append([
             InlineKeyboardButton(text="🛒 Корзина", callback_data="view_cart"),
-            InlineKeyboardButton(text="🔥 Популярное", callback_data="popular"),
+            InlineKeyboardButton(text="🔥 Популярное", callback_data="history_orders"),
         ])
 
         text = "📦 Выберите подкатегорию или товар:" if (subcats or items) else "❌ Здесь пока нет товаров."
