@@ -114,7 +114,7 @@ async def process_quantity(message: Message, state: FSMContext):
     # Кнопки Корзина и Популярное на одной линии
     buttons.append([
         InlineKeyboardButton(text="🛒 Корзина", callback_data="view_cart"),
-        InlineKeyboardButton(text="🔥 Популярное", callback_data="popular"),
+        InlineKeyboardButton(text="🔥 Популярное", callback_data="history_orders"),
         InlineKeyboardButton(text="🗂️ История заказов", callback_data="history_orders")
     ])
 

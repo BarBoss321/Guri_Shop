@@ -29,7 +29,7 @@ async def _build_root_menu():
 
     # Объединяем в одну строку
     buttons.append([
-        InlineKeyboardButton(text="🔥 Популярное", callback_data="popular"),
+        InlineKeyboardButton(text="🔥 Популярное", callback_data="history_orders"),
         InlineKeyboardButton(text="🛒 Корзина", callback_data="view_cart"),
         InlineKeyboardButton(text="🗂️ История заказов", callback_data="history_orders")
     ])

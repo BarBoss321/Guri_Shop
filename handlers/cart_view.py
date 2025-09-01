@@ -452,7 +452,7 @@ async def back_to_menu(callback: CallbackQuery, state: FSMContext):
     # универсальные
     rows.append([
         InlineKeyboardButton(text="🛒 Корзина", callback_data="view_cart"),
-        InlineKeyboardButton(text="🔥 Популярное", callback_data="popular"),
+        InlineKeyboardButton(text="🔥 Популярное", callback_data="history_orders"),
         InlineKeyboardButton(text="🗂️ История заказов", callback_data="history_orders")
     ])
     # На корне кнопки «Назад» нет — это и нужно
