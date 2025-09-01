@@ -1,5 +1,6 @@
 import aiosqlite
 
+
 DB_PATH = "shop_bot.db"
 
 def connect():
@@ -89,6 +90,9 @@ async def fetch_order_items(order_id: int):
     await db.close()
     return rows
 
+def get_last_orders(user_id: int, limit: int = 3):
+    """Alias для старых импортов."""
+    return get_last_orders_with_items(user_id, limit)
 
 def get_last_orders_with_items(user_id: int, limit: int = 3):
     """
@@ -117,3 +121,14 @@ def get_last_orders_with_items(user_id: int, limit: int = 3):
     rows = cur.fetchall()
     conn.close()
     return rows
+try:
+    get_last_orders  # если уже есть — ничего не делаем
+except NameError:
+    # подставь сюда ту функцию, которая реально существует у тебя
+    from services.db import get_last_orders_with_items as _impl  # если она у тебя есть
+    # ИЛИ
+    # from services.db import fetch_last_orders as _impl
+
+    def get_last_orders(user_id: int, limit: int = 3):
+        """Совместимость со старым импортом."""
+        return _impl(user_id, limit)
