@@ -1,7 +1,6 @@
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
 from aiogram.utils.markdown import hbold, hcode
-from services.db import fetch_last_orders, fetch_order_items
 from services.db import get_last_orders_with_items
 
 router = Router()
