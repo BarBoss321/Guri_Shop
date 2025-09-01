@@ -2,6 +2,7 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from services.db import get_db
 from aiogram.fsm.context import FSMContext
+from services.db import get_last_orders
 
 router = Router()
 
@@ -29,9 +30,9 @@ async def _build_root_menu():
 
     # Объединяем в одну строку
     buttons.append([
-        InlineKeyboardButton(text="🔥 Популярное", callback_data="history_orders"),
-        InlineKeyboardButton(text="🛒 Корзина", callback_data="view_cart"),
-        InlineKeyboardButton(text="🗂️ История заказов", callback_data="history_orders")
+        InlineKeyboardButton(text="🔥 Популярное", callback_data="popular"),
+        InlineKeyboardButton(text="История", callback_data="history_orders"),
+        InlineKeyboardButton(text="🛒 Корзина", callback_data="view_cart")
     ])
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
@@ -109,3 +110,19 @@ async def show_popular(callback: CallbackQuery):
             await callback.message.edit_text("❌ Не удалось загрузить популярное. Попробуйте позже.")
         except:
             pass
+
+
+@router.callback_query(F.data == "history_orders")
+async def show_history(callback: CallbackQuery):
+    user_id = callback.from_user.id
+    orders = get_last_orders(user_id)
+
+    if not orders:
+        await callback.message.answer("📭 У вас пока нет заказов.")
+        return
+
+    text = "🕑 Ваши последние заказы:\n\n"
+    for o in orders:
+        text += f"📦 Заказ #{o[0]} от {o[1]}\n   - {o[2]} × {o[3]} шт.\n\n"
+
+    await callback.message.answer(text)

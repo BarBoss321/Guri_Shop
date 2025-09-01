@@ -2,6 +2,9 @@ import aiosqlite
 
 DB_PATH = "shop_bot.db"
 
+def connect():
+    return sqlite3.connect("shop_bot.db")
+
 async def get_db():
     return await aiosqlite.connect(DB_PATH)
 
@@ -60,4 +63,45 @@ def abs_db_path() -> str:
     return DB_PATH.as_posix()
 
 
+async def fetch_last_orders(user_id: int, limit: int = 3):
+    db = await get_db()
+    cur = await db.execute("""
+        SELECT id, created_at
+        FROM orders
+        WHERE user_id = ?
+        ORDER BY datetime(created_at) DESC, id DESC
+        LIMIT ?
+    """, (user_id, limit))
+    rows = await cur.fetchall()
+    await db.close()
+    return rows
 
+async def fetch_order_items(order_id: int):
+    db = await get_db()
+    cur = await db.execute("""
+        SELECT i.name AS title, oi.quantity AS qty
+        FROM order_items oi
+        JOIN items i ON i.id = oi.item_id
+        WHERE oi.order_id = ?
+        ORDER BY oi.id ASC
+    """, (order_id,))
+    rows = await cur.fetchall()
+    await db.close()
+    return rows
+
+
+async def get_last_orders(user_id: int):
+    conn = connect()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT o.id, o.created_at, i.name, oi.qty
+        FROM orders o
+        JOIN order_items oi ON o.id = oi.order_id
+        JOIN items i ON oi.item_id = i.id
+        WHERE o.user_id = ?
+        ORDER BY o.created_at DESC
+        LIMIT 3
+    """, (user_id,))
+    rows = cur.fetchall()
+    conn.close()
+    return rows
