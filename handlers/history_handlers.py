@@ -4,10 +4,13 @@ from services.db import get_last_grouped_orders
 
 router = Router()
 
+# заметный разделитель между заказами
+ORDER_SPLIT = "\n<b>────────────────────────</b>\n\n"   # 24 символа
+
 def format_order_block(order_no: int, created_at: str, items_join: str) -> str:
     """
-    items_join: строка вида "Название : Кол-во || Название : Кол-во ..."
-    created_at: строка даты-времени, берём только дату
+    items_join: 'Название : Кол-во || Название : Кол-во ...'
+    created_at: 'YYYY-MM-DD HH:MM:SS' — берём только дату.
     """
     order_date = created_at.split(" ")[0] if created_at else "—"
 
@@ -19,45 +22,32 @@ def format_order_block(order_no: int, created_at: str, items_join: str) -> str:
                 continue
             if ":" in raw:
                 name, qty = raw.split(":", 1)
-                lines.append(f"• {name.strip()} × {qty.strip()}")
+                name = name.strip()
+                qty = qty.strip()
             else:
-                lines.append(f"• {raw.strip()} × 1")
+                name, qty = raw.strip(), "1"
+            lines.append(f"• {name} × {qty}")
 
-    body = "\n".join(lines) if lines else "—"
+    body = "\n".join(lines) if lines else "• —"
 
-    return (
-        f"📦 Заказ №{order_no}\n"
-        f"🗓 {order_date}\n"
-        f"━━━━━━━━━━━━━━\n"
-        f"{body}"
-    )
+    # Заголовок — в одну строку: номер + дата
+    header = f"📦 <b>Заказ №{order_no}</b> · 🗓 {order_date}"
+
+    return f"{header}\n{body}"
 
 @router.callback_query(F.data == "history_orders")
-async def show_history(callback: CallbackQuery):
-    uid = callback.from_user.id
-    rows = get_last_grouped_orders(uid, limit=3)
+async def show_history(c: CallbackQuery):
+    uid = c.from_user.id
+    rows = get_last_grouped_orders(uid, limit=3)  # (order_no, created_at, items_join)
 
     if not rows:
-        await callback.message.edit_text("Пока нет заявок.", parse_mode="HTML")
-        await callback.answer()
+        await c.message.edit_text("Пока нет заявок.", parse_mode="HTML")
+        await c.answer()
         return
 
-    parts = ["🧾 <b>Ваши последние заявки:</b>", ""]
-    blocks = []
+    blocks = [format_order_block(no, dt, join) for (no, dt, join) in rows]
+    text = "🧾 <b>Ваши последние заявки:</b>\n\n" + ORDER_SPLIT.join(blocks)
 
-    for order_no, created_at, items_join in rows:
-        blocks.append(format_order_block(order_no, created_at, items_join))
+    await c.message.edit_text(text, parse_mode="HTML")
+    await c.answer()
 
-    # Соединяем блоки через длинный разделитель
-    text = "\n\n───────────────────────\n\n".join(blocks)
-
-    final_text = "\n".join(parts) + text
-    await callback.message.edit_text(final_text, parse_mode="HTML")
-    await callback.answer()
-    for order_no, created_at, items_join in rows:
-        parts.append(format_order_block(order_no, created_at, items_join))
-        parts.append("")
-
-    text = "\n".join(parts).rstrip()
-    await callback.message.edit_text(text, parse_mode="HTML")
-    await callback.answer()
