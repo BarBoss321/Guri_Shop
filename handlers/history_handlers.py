@@ -18,11 +18,12 @@ async def show_history(callback: CallbackQuery):
     lines = ["🧾 <b>Ваши последние заявки:</b>", ""]
     for r in rows:
         order_no = r["order_no"]
-        created  = r["created_at"] or ""
-        items    = r["items_join"] or ""   # уже готовая строка: "Товар1 x 2 || Товар2 x 3"
+        created = r["created_at"] or ""
+        items = r["items_join"] or ""
 
         lines.append(f"📦 <b>#{order_no}</b> от {created}")
-        lines.append(f"• {items}")
+        pretty = "• " + items.replace(" || ", "\n• ")
+        lines.append(pretty)
         lines.append("")  # пустая строка-разделитель
 
     await callback.message.edit_text("\n".join(lines), parse_mode="HTML")
