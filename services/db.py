@@ -37,7 +37,7 @@ def get_last_grouped_orders(user_id: int, limit: int = 3):
         SELECT
             MIN(o.id) AS order_no,
             ts        AS created_at,
-            GROUP_CONCAT(i.name  ' x '  o.quantity, '\n') AS items_join
+            GROUP_CONCAT( printf('%s x %d', i.name, o.quantity), '\n• ' ) AS items_join
         FROM o
         JOIN items i ON i.id = o.item_id
         GROUP BY ts
