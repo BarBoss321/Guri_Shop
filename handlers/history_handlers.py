@@ -38,16 +38,31 @@ def format_order_block(order_no: int, created_at: str, items_join: str) -> str:
 @router.callback_query(F.data == "history_orders")
 async def show_history(c: CallbackQuery):
     uid = c.from_user.id
-    rows = get_last_grouped_orders(uid, limit=3)  # (order_no, created_at, items_join)
+    rows = get_last_grouped_orders(uid, limit=3)
 
     if not rows:
-        await c.message.edit_text("Пока нет заявок.", parse_mode="HTML")
+        await c.message.edit_text(
+            "Пока нет заявок.",
+            parse_mode="HTML",
+            reply_markup=history_back_kb()
+        )
         await c.answer()
         return
 
     blocks = [format_order_block(no, dt, join) for (no, dt, join) in rows]
     text = "🧾 <b>Ваши последние заявки:</b>\n\n" + ORDER_SPLIT.join(blocks)
 
-    await c.message.edit_text(text, parse_mode="HTML")
+    await c.message.edit_text(
+        text,
+        parse_mode="HTML",
+        reply_markup=history_back_kb()
+    )
     await c.answer()
 
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+def history_back_kb() -> InlineKeyboardMarkup:
+    kb = [
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_menu")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=kb)
