@@ -14,10 +14,11 @@ def connect():
 # --- ИСТОРИЯ ЗАКАЗОВ: последние N записей из orders (без order_items) ---
 def get_last_grouped_orders(user_id: int, limit: int = 3):
     """
-    Группируем позиции в одну строку по каждой заявке (по метке времени ts).
-    Возвращаем: (order_no, created_at, items_join)
-    где items_join = "Товар1 × 5 || Товар2 × 3"
+    Возвращает список заявок, где товары внутри каждой заявки уже сгруппированы:
+    (order_no, created_at, items_join)
+    items_join вида: "Товар1 x 5 || Товар2 x 3"
     """
+    import sqlite3
     conn = connect()
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
@@ -36,8 +37,7 @@ def get_last_grouped_orders(user_id: int, limit: int = 3):
         SELECT
             MIN(o.id) AS order_no,
             ts        AS created_at,
-            -- собираем "имя × кол-во" через ASCII-разделитель
-            GROUP_CONCAT(i.name  ' × '  CAST(o.quantity AS TEXT), '||') AS items_join
+            GROUP_CONCAT( printf('%s x %d', i.name, o.quantity), ' || ' ) AS items_join
         FROM o
         JOIN items i ON i.id = o.item_id
         GROUP BY ts
@@ -48,7 +48,6 @@ def get_last_grouped_orders(user_id: int, limit: int = 3):
     rows = cur.fetchall()
     conn.close()
     return rows
-
 # если где-то вызывают старое имя:
 def get_last_orders(user_id: int, limit: int = 3):
     return get_last_grouped_orders(user_id, limit)
