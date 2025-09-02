@@ -5,7 +5,7 @@ from services.db import get_last_grouped_orders
 router = Router()
 
 # заметный разделитель между заказами
-ORDER_SPLIT = "\n<b>────────────────────────</b>\n\n"   # 24 символа
+ORDER_SPLIT = "\n<b>───────────────────</b>\n\n"   # 24 символа
 
 def format_order_block(order_no: int, created_at: str, items_join: str) -> str:
     """
