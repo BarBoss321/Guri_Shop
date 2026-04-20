@@ -68,22 +68,19 @@ async def main():
     dp.include_router(cart_view.router)
     dp.include_router(history_handlers.router)
 
-    # Startup
+# Startup
     dp.startup.register(on_startup)
 
-    try:
-        await bot.delete_webhook(drop_pending_updates=False)
-        await dp.start_polling(bot, polling_timeout=60)
-
-    except Exception:
-        logging.exception("BOT CRASHED")
-        raise
-
-    finally:
-        # ВАЖНО: закрываем всё
-        await bot.session.close()
-        await storage.close()
-        await redis.aclose()
+try:
+    await dp.start_polling(bot, polling_timeout=60)
+except Exception:
+    logging.exception("BOT CRASHED")
+    raise
+finally:
+    # ВАЖНО: закрываем всё
+    await bot.session.close()
+    await storage.close()
+    await redis.aclose()
 
 
 # --- запуск ---
