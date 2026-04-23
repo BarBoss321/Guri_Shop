@@ -50,54 +50,44 @@ def build_dispatcher(storage: RedisStorage) -> Dispatcher:
     return dp
 
 
-async def run_bot():
-    redis = None
-    storage = None
-    bot = None
-
-    try:
-        redis = aioredis.from_url(REDIS_URL)
-
-        storage = RedisStorage(
-            redis=redis,
-            key_builder=DefaultKeyBuilder(with_bot_id=True, prefix="guri_shop2")
-        )
-
-        bot = Bot(
-            token=BOT_TOKEN,
-            default=DefaultBotProperties(parse_mode="HTML")
-        )
-
-        dp = build_dispatcher(storage)
-
-        await bot.delete_webhook(drop_pending_updates=False)
-        logging.info("Start polling")
-        await dp.start_polling(bot, polling_timeout=60)
-
-    finally:
-        if bot is not None:
-            await bot.session.close()
-        if storage is not None:
-            await storage.close()
-        if redis is not None:
-            await redis.aclose()
-
-
 async def main():
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s"
     )
 
-    while True:
-        try:
-            await run_bot()
-        except TelegramNetworkError:
-            logging.exception("Telegram network error, retry in 5 sec")
-        except Exception:
-            logging.exception("Bot crashed, retry in 5 sec")
+    redis = aioredis.from_url(REDIS_URL)
 
-        await asyncio.sleep(5)
+    storage = RedisStorage(
+        redis=redis,
+        key_builder=DefaultKeyBuilder(with_bot_id=True, prefix="guri_shop2")
+    )
+
+    bot = Bot(
+        token=BOT_TOKEN,
+        default=DefaultBotProperties(parse_mode="HTML")
+    )
+
+    dp = build_dispatcher(storage)
+
+    try:
+        await bot.delete_webhook(drop_pending_updates=False)
+
+        while True:
+            try:
+                logging.info("Start polling")
+                await dp.start_polling(bot, polling_timeout=60)
+            except TelegramNetworkError:
+                logging.exception("Telegram network error, retry in 5 sec")
+                await asyncio.sleep(5)
+            except Exception:
+                logging.exception("Bot crashed, retry in 5 sec")
+                await asyncio.sleep(5)
+
+    finally:
+        await bot.session.close()
+        await storage.close()
+        await redis.aclose()
 
 
 if __name__ == "__main__":
