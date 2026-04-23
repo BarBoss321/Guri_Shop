@@ -122,10 +122,11 @@ async def show_popular(callback: CallbackQuery):
                 "🔥  Популярное пусто.\nСделайте несколько заказов — и здесь появятся ваши самые частые позиции."
             )
             return
-             buttons = [[InlineKeyboardButton(
+            
+        buttons = [[InlineKeyboardButton(
                 text=f"{name} • {total_qty}",
                 callback_data=f"item_{item_id}:{cat_id}:0:0"
-            )]
+        )]
             for (item_id, name, cat_id, total_qty) in rows
         ]
 
