@@ -1,0 +1,15 @@
+[Unit]
+Description=Guri Shop Bot (shopbot)
+After=network-online.target redis-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/GSB/Guri_Shop
+ExecStart=/opt/GSB/Guri_Shop/.venv/bin/python bot.py
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
