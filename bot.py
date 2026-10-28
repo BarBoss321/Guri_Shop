@@ -16,9 +16,10 @@ from aiogram.fsm.storage.redis import RedisStorage, DefaultKeyBuilder
 import redis.asyncio as aioredis
 from handlers import history_handlers, search_handlers
 from handlers import user_handlers, catalog_handlers, cart_handlers, cart_view
-from admin import admin_handlers, order_replies, catalog_admin
+from admin import admin_handlers, order_replies, catalog_admin, reminder_admin
 from filters.access import AccessMiddleware
 from services.db import ensure_schema, abs_db_path
+from services.reminder import reminder_loop
 
 print("ENV PATH =", ENV_PATH)
 print("BOT_TOKEN prefix =", (os.getenv("BOT_TOKEN") or "")[:8])
@@ -34,9 +35,15 @@ PROXY_URL = os.getenv("PROXY_URL") or None
 assert BOT_TOKEN, "BOT_TOKEN is empty (set it in .env)"
 
 # --- on_startup ---
+background_tasks = set()
+
 async def on_startup(bot: Bot):
     print("Preparing DB at:", abs_db_path())
     await ensure_schema()
+    # напоминания про заявки в рабочий чат (пн и чт, 6:00 МСК)
+    task = asyncio.create_task(reminder_loop(bot))
+    background_tasks.add(task)
+    task.add_done_callback(background_tasks.discard)
 
 # --- main ---
 async def main():
@@ -65,6 +72,7 @@ async def main():
     dp.include_router(admin_handlers.router)
     dp.include_router(order_replies.router)
     dp.include_router(catalog_admin.router)
+    dp.include_router(reminder_admin.router)
     dp.include_router(catalog_handlers.router)
     dp.include_router(cart_handlers.router)
     dp.include_router(cart_view.router)

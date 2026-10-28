@@ -166,6 +166,16 @@ class AccessMiddleware(BaseMiddleware):
             return await handler(event, data)
 
         remember_user(user.id, user.username, user.full_name)
+
+        # в рабочих чатах бот молчит: не отвечает «доступ запрещён» коллегам и не ищет
+        # товары по каждому сообщению — реагирует только на команды напоминаний от админа
+        message = event if isinstance(event, Message) else getattr(event, "message", None)
+        if message is not None and message.chat.type != "private":
+            if (isinstance(event, Message) and user.id == ADMIN_ID
+                    and (event.text or "").startswith("/remind")):
+                return await handler(event, data)
+            return None
+
         if is_user_allowed(user.id):
             return await handler(event, data)
 
