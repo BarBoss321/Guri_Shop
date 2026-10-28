@@ -9,9 +9,19 @@ import html
 from config import ADMIN_ID
 from handlers.cart_view import back_to_menu_kb
 from admin.order_replies import order_reply_kb
-# 👉 вынеси в config.py и импортируй оттуда
 
 router = Router()
+
+# Юрлица, от которых оформляется заявка: ключ идёт в callback_data, значение — как писать.
+# Ключи старых юрлиц не меняем: кнопки в уже отправленных сообщениях должны работать.
+COMPANIES = {
+    "АНИКО": "ООО «АНИКО»",
+    "СФЕРА": "ООО «СФЕРА»",
+    "КЕЛЬТ": "ООО «КЕЛЬТ»",
+    "ПРИВИЛЕГИЯ": "ООО «ПРИВИЛЕГИЯ»",
+    "ГРАНДЭ": "ООО «ГРАНДЭ»",
+    "ЖЕЛЕЗНИКОВ": "ИП «ЖЕЛЕЗНИКОВ»",
+}
 
 @router.callback_query(F.data.startswith("item_"))
 async def handle_item_click(callback: CallbackQuery, state: FSMContext):
@@ -204,7 +214,7 @@ async def handle_company_selection(callback: CallbackQuery, state: FSMContext):
         who += f" (@{callback.from_user.username})"
     text = (
         f"🧑‍💼Новая заявка <b>№{order_no}</b> от <b>{who}</b> · <code>{user_id}</code>\n"
-        f"📦<b>ООО {company_name}</b>\n\n"
+        f"📦<b>{html.escape(COMPANIES.get(company_name, company_name))}</b>\n\n"
     )
     for supplier, goods in grouped.items():
         text += f"<b>{supplier}</b>:\n" + "\n".join(f"▪️ {g}" for g in goods) + "\n\n"
@@ -234,10 +244,7 @@ async def handle_company_selection(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "submit_cart")
 async def submit_cart(callback: CallbackQuery, state: FSMContext):
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="ООО «АНИКО»", callback_data="company_АНИКО")],
-        [InlineKeyboardButton(text="ООО «СФЕРА»", callback_data="company_СФЕРА")],
-        [InlineKeyboardButton(text="ООО «КЕЛЬТ»", callback_data="company_КЕЛЬТ")],
-        [InlineKeyboardButton(text="ООО «ПРИВИЛЕГИЯ»", callback_data="company_ПРИВИЛЕГИЯ")],
+        *([InlineKeyboardButton(text=title, callback_data=f"company_{key}")] for key, title in COMPANIES.items()),
         [InlineKeyboardButton(text="🔙 Назад в меню", callback_data="back_to_menu")],
     ])
 
