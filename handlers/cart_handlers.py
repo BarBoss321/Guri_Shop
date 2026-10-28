@@ -49,11 +49,17 @@ async def handle_item_click(callback: CallbackQuery, state: FSMContext):
 
 @router.message(CartStates.awaiting_quantity)
 async def process_quantity(message: Message, state: FSMContext):
-    if not message.text.isdigit() or int(message.text) <= 0:
+    # стикер/фото вместо числа: text = None
+    if not message.text or not message.text.isdigit() or int(message.text) <= 0:
         await message.delete()
         return
 
     data = await state.get_data()
+    if "item_id" not in data:
+        # состояние потеряно (например, после перезапуска Redis)
+        await state.clear()
+        await message.answer("⚠️ Выберите товар заново: /s")
+        return
     item_id = data["item_id"]
     item_name = data["item_name"]
     category_id = data["category_id"]
@@ -142,8 +148,9 @@ async def process_quantity(message: Message, state: FSMContext):
 
     await state.clear()
 
-# ✅ выбор компании (верная state + перенос в orders)
-@router.callback_query(CartStates.choosing_company, F.data.startswith("company_"))
+# ✅ выбор компании (перенос в orders). Без фильтра по state: если состояние потерялось,
+# заявка всё равно должна попасть в историю, а не уйти в дубль-обработчик без сохранения
+@router.callback_query(F.data.startswith("company_"))
 async def handle_company_selection(callback: CallbackQuery, state: FSMContext):
     company_name = callback.data.replace("company_", "")
     user_id = callback.from_user.id

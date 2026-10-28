@@ -1,3 +1,5 @@
+import asyncio
+
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
 from services.db import get_last_grouped_orders
@@ -38,7 +40,8 @@ def format_order_block(order_no: int, created_at: str, items_join: str) -> str:
 @router.callback_query(F.data == "history_orders")
 async def show_history(c: CallbackQuery):
     uid = c.from_user.id
-    rows = get_last_grouped_orders(uid, limit=3)
+    # синхронный sqlite — в отдельном потоке, чтобы не блокировать остальных пользователей
+    rows = await asyncio.to_thread(get_last_grouped_orders, uid, 3)
 
     if not rows:
         await c.message.edit_text(

@@ -2,20 +2,22 @@ import asyncio
 import logging
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# --- Загружаем .env (до импорта хендлеров: они читают переменные при импорте) ---
+BASE_DIR = Path(__file__).parent
+ENV_PATH = BASE_DIR / ".env"
+load_dotenv(dotenv_path=ENV_PATH, override=True, encoding="utf-8")
+
 from aiogram.client.default import DefaultBotProperties
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.redis import RedisStorage, DefaultKeyBuilder
 import redis.asyncio as aioredis
-from dotenv import load_dotenv
 from handlers import history_handlers
 from handlers import user_handlers, catalog_handlers, cart_handlers, cart_view
 from admin import admin_handlers
 from services.db import ensure_schema, abs_db_path
-
-# --- Загружаем .env ---
-BASE_DIR = Path(__file__).parent
-ENV_PATH = BASE_DIR / ".env"
-load_dotenv(dotenv_path=ENV_PATH, override=True, encoding="utf-8")
 
 print("ENV PATH =", ENV_PATH)
 print("BOT_TOKEN prefix =", (os.getenv("BOT_TOKEN") or "")[:8])
@@ -25,6 +27,8 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "0") or 0)
 DB_PATH = os.getenv("DB_PATH", "shop_bot.db")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+# Необязательно: http-прокси до api.telegram.org, если с сервера Telegram тормозит
+PROXY_URL = os.getenv("PROXY_URL") or None
 
 assert BOT_TOKEN, "BOT_TOKEN is empty (set it in .env)"
 
@@ -39,6 +43,7 @@ async def main():
 
     bot = Bot(
         token=BOT_TOKEN,
+        session=AiohttpSession(proxy=PROXY_URL) if PROXY_URL else None,
         default=DefaultBotProperties(parse_mode="HTML")
     )
 

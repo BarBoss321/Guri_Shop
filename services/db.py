@@ -4,44 +4,37 @@ import sqlite3
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-DB_PATH = os.getenv("DB_PATH", str(BASE_DIR / "shop_bot.db"))
+# Абсолютный путь: по умолчанию файл лежит в корне проекта рядом с bot.py
+DB_PATH = Path(os.getenv("DB_PATH") or "shop_bot.db")
+if not DB_PATH.is_absolute():
+    DB_PATH = BASE_DIR / DB_PATH
 
 def connect():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row  # чтобы по именам колонок брать
     return conn
 
-# --- ИСТОРИЯ ЗАКАЗОВ: последние N записей из orders (без order_items) ---
+# --- ИСТОРИЯ ЗАКАЗОВ: последние N заявок из orders ---
 def get_last_grouped_orders(user_id: int, limit: int = 3):
     """
     Возвращает список заявок, где товары внутри каждой заявки уже сгруппированы:
     (order_no, created_at, items_join)
-    items_join вида: "Товар1 x 5 || Товар2 x 3"
+    items_join вида: "Товар1 : 5 || Товар2 : 3"
     """
-    import sqlite3
     conn = connect()
-    conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
+    # одна заявка = все позиции, перенесённые из корзины одним INSERT (одинаковый order_date)
     cur.execute("""
-        WITH o AS (
-            SELECT
-                id,
-                user_id,
-                item_id,
-                quantity,
-                COALESCE(created_at, order_date) AS ts
-            FROM orders
-            WHERE user_id = ?
-        )
         SELECT
-            MIN(o.id) AS order_no,
-            ts        AS created_at,
-            GROUP_CONCAT( printf('%s x %d', i.name, o.quantity), '\n• ' ) AS items_joinп
-        FROM o
+            MIN(o.id)  AS order_no,
+            o.order_date AS created_at,
+            GROUP_CONCAT(i.name || ' : ' || o.quantity, '||') AS items_join
+        FROM orders o
         JOIN items i ON i.id = o.item_id
-        GROUP BY ts
-        ORDER BY datetime(ts) DESC
+        WHERE o.user_id = ?
+        GROUP BY o.order_date
+        ORDER BY datetime(o.order_date) DESC
         LIMIT ?
     """, (user_id, limit))
 
@@ -76,14 +69,6 @@ async def insert_test_company(user_id: int, name: str):
     await db.commit()
     await db.close()
 
-import asyncio
-import os
-from pathlib import Path
-from services.db import create_companies_table, insert_test_company
-
-# Абсолютный путь: файл лежит в корне проекта рядом с bot.py
-DB_PATH = Path(__file__).resolve().parent.parent / "shop_bot.db"
-
 async def ensure_schema():
     db = await get_db()
     await db.execute("""
@@ -97,6 +82,9 @@ async def ensure_schema():
     """)
     await db.execute("CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id);")
     await db.execute("CREATE INDEX IF NOT EXISTS idx_orders_item ON orders(item_id);")
+    # индексы для каталога: без них каждое нажатие кнопки — полный перебор таблиц
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_categories_parent ON categories(parent_id);")
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_items_category ON items(category_id);")
     await db.commit()
 
     # Диагностика: покажем, какие таблицы реально есть
@@ -109,6 +97,3 @@ async def ensure_schema():
 
 def abs_db_path() -> str:
     return DB_PATH.as_posix()
-
-
-

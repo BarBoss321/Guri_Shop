@@ -1,3 +1,5 @@
+import asyncio
+
 from aiogram import Router, F
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from services.db import get_db
@@ -5,9 +7,7 @@ from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from states.cart_states import CartStates
 from aiogram.exceptions import TelegramBadRequest
-from collections import defaultdict
-from aiogram import Bot
-from filters import access
+from config import ADMIN_ID
 
 router = Router()
 
@@ -83,9 +83,7 @@ async def submit_order(callback: Message):
     for name, qty in items:
         text += f"🔹 {name} — {qty} шт."
 
-    # Отправка админу (здесь ID админа можно будет подгрузить из настроек)
-    admin_id = 1297005050
-    await callback.bot.send_message(chat_id=admin_id, text=text)
+    await callback.bot.send_message(chat_id=ADMIN_ID, text=text)
 
     await callback.message.edit_text("✅ Заказ отправлен!")
     await callback.answer()
@@ -132,12 +130,13 @@ async def update_quantity(message: Message, state: FSMContext):
     except:
         pass  # если сообщение уже удалено — не падаем
 
-    if not message.text.isdigit() or int(message.text) <= 0:
+    if not message.text or not message.text.isdigit() or int(message.text) <= 0:
         await message.answer("❌ Введите положительное число.")
         return
 
     data = await state.get_data()
     item_id = data.get("edit_item_id")
+    item_name = "товар"
     msg_id = data.get("message_id")
     quantity = int(message.text)
     user_id = message.from_user.id
@@ -201,40 +200,7 @@ async def update_quantity(message: Message, state: FSMContext):
         [InlineKeyboardButton(text="🔙 Назад в меню", callback_data="back_to_menu")]
     ])
 
-    try:
-        await message.bot.edit_message_text(
-            chat_id=message.chat.id,
-            message_id=msg_id,
-            text=cart_text,
-            parse_mode="HTML",
-            reply_markup=keyboard
-        )
-        print("✅ Сообщение обновлено")
-    except Exception as e:
-        print("❌ Ошибка при обновлении сообщения:", e)
-
-    # Уведомление
-    try:
-        db = await get_db()
-        cursor = await db.execute("SELECT name FROM items WHERE id = ?", (item_id,))
-        row = await cursor.fetchone()
-        await db.close()
-        item_name = row[0] if row else "товар"
-    except Exception as e:
-        print("❌ Ошибка при получении названия:", e)
-        item_name = "товар"
-
-    cart_text = "<b>🛒 Ваша корзина:</b>\n\n"
-    for iid, name, qty in items:
-        cart_text += f"🔹 {name} — {qty} шт.\n"
-
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✏️ Изменить количество", callback_data="edit_mode")],
-        [InlineKeyboardButton(text="❌ Удалить позицию", callback_data="remove_mode")],
-        [InlineKeyboardButton(text="✅ Подтвердить заказ", callback_data="submit_cart")],
-        [InlineKeyboardButton(text="🔙 Назад в меню", callback_data="back_to_menu")]
-    ])
-
+    # одно обновление сообщения вместо двух одинаковых запросов к Telegram
     try:
         await message.bot.edit_message_text(
             chat_id=message.chat.id,
@@ -298,8 +264,6 @@ async def ask_new_quantity(callback: CallbackQuery, state: FSMContext):
 
     await callback.answer()
 
-    await callback.answer()
-
 @router.callback_query(F.data == "edit_mode")
 async def choose_item_to_edit(callback: CallbackQuery, state: FSMContext):
     db = await get_db()
@@ -324,16 +288,6 @@ async def choose_item_to_edit(callback: CallbackQuery, state: FSMContext):
 
     await callback.message.edit_text("Выберите товар, который хотите изменить:", reply_markup=keyboard)
     await callback.answer()
-
-@router.callback_query(F.data.startswith("edititem_"))
-async def ask_new_qty(callback: CallbackQuery, state: FSMContext):
-    item_id = int(callback.data.replace("edititem_", ""))
-    await state.update_data(edit_item_id=item_id, message_id=callback.message.message_id)
-    await state.set_state(CartStates.editing_quantity)
-
-    await callback.message.answer("✏️ Введите новое количество:")
-    await callback.answer()
-
 
 @router.callback_query(F.data.startswith("removeitem_"))
 async def remove_selected_item(callback: CallbackQuery):
@@ -464,58 +418,5 @@ async def back_to_menu(callback: CallbackQuery, state: FSMContext):
     )
     await callback.answer()
 
-ADMIN_ID = 1297005050
-
-async def send_order_to_admin(bot: Bot, user_id: int, company_name: str):
-    db = await get_db()
-
-    # Получаем товары пользователя
-    cursor = await db.execute("""
-        SELECT c.quantity, i.name, i.supplier
-        FROM cart c
-        JOIN items i ON c.item_id = i.id
-        WHERE c.user_id = ?
-    """, (user_id,))
-    rows = await cursor.fetchall()
-
-    if not rows:
-        await db.close()
-        return
-
-    # Группируем по поставщикам
-    grouped = defaultdict(list)
-    for quantity, item_name, supplier in rows:
-        supplier = supplier or "❓ Без поставщика"
-        grouped[supplier].append(f"{item_name} — {quantity} шт.")
-
-    # Подготовка текста
-    message = f"🧑‍💼 Новая заявка от <b><code>{user_id}</code></b>\n"
-    message += f"🏢 <b>{'ООО ' if not company_name.startswith('ООО') else ''}{company_name}</b>\n\n"
-
-    for supplier, items_list in grouped.items():
-        message += f"<b>{supplier}</b>:\n"
-        message += "\n".join(f"▪️ {item}" for item in items_list)
-        message += "\n\n"
-
-    # Отправка администратору
-    await bot.send_message(
-        chat_id=ADMIN_ID,  # не забудь импортировать или указать ID
-        text=message,
-        parse_mode="HTML"
-    )
-
-    # Очистка корзины
-    await db.execute("DELETE FROM cart WHERE user_id = ?", (user_id,))
-    await db.commit()
-    await db.close()
-
-@router.callback_query(lambda c: c.data.startswith("company_"))
-async def handle_company_choice(callback: CallbackQuery, state: FSMContext, bot):
-    company_name = callback.data.split("company_")[1]
-    user_id = callback.from_user.id
-
-    await send_order_to_admin(bot, user_id=user_id, company_name=company_name)
-
-    await callback.message.edit_text("✅ Заявка отправлена администратору.")
-    await state.clear()
-    await callback.answer()
+# Отправка заявки админу — в cart_handlers.handle_company_selection
+# (там же позиции переносятся в историю заказов).

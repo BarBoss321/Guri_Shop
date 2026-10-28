@@ -11,5 +11,6 @@ def load_allowed_users():
         return {}
 
 def is_user_allowed(user_id: int) -> bool:
-    allowed = load_allowed_users()
+    # в allowed_users.json id лежат числами — сравниваем как строки, чтобы подходили оба варианта
+    allowed = {str(uid) for uid in load_allowed_users()}
     return str(user_id) in allowed
