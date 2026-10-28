@@ -11,3 +11,4 @@ users.db.*
 data/
 bot_test.log
 *.before-test.db
+backups/
