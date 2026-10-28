@@ -7,6 +7,7 @@ from collections import defaultdict
 import asyncio
 from config import ADMIN_ID
 from handlers.cart_view import back_to_menu_kb
+from services.memes import send_random_meme
 # 👉 вынеси в config.py и импортируй оттуда
 
 router = Router()
@@ -213,6 +214,9 @@ async def handle_company_selection(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text("✅ Заявка отправлена администратору. Корзина очищена.", reply_markup=back_to_menu_kb())
     await state.clear()
     await callback.answer()
+
+    # мем пользователю и админу — после ответа, чтобы не задерживать оформление
+    await send_random_meme(callback.bot, [user_id, ADMIN_ID])
 
 
 # ❌ УДАЛИ/ЗАКОММЕНТЬ ЭТОТ ХЕНДЛЕР (он ломал всё, JOIN suppliers не нужен)
