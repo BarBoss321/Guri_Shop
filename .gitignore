@@ -8,3 +8,6 @@ __pycache__/
 *.sqlite3
 *.db-journal
 users.db.*
+data/
+bot_test.log
+*.before-test.db
