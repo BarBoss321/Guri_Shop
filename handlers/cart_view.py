@@ -11,6 +11,13 @@ from config import ADMIN_ID
 
 router = Router()
 
+def back_to_menu_kb() -> InlineKeyboardMarkup:
+    # чтобы из пустой корзины можно было вернуться в каталог без /s
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔙 Назад в меню", callback_data="back_to_menu")]
+    ])
+
+
 @router.message(F.text.lower() == "корзина")
 async def view_cart(message: Message):
     db = await get_db()
@@ -27,7 +34,7 @@ async def view_cart(message: Message):
     await db.close()
 
     if not items:
-        await message.answer("🛒 Ваша корзина пуста.")
+        await message.answer("🛒 Ваша корзина пуста.", reply_markup=back_to_menu_kb())
         return
 
     text = "<b>🛒 Ваша корзина:</b>\n\n"
@@ -53,7 +60,7 @@ async def clear_cart(callback: Message):
     await db.execute("DELETE FROM cart WHERE user_id = ?", (callback.from_user.id,))
     await db.commit()
     await db.close()
-    await callback.message.edit_text("🗑 Корзина очищена.")
+    await callback.message.edit_text("🗑 Корзина очищена.", reply_markup=back_to_menu_kb())
     await callback.answer()
 
 @router.callback_query(F.data == "submit_order")
@@ -74,7 +81,7 @@ async def submit_order(callback: Message):
     await db.close()
 
     if not items:
-        await callback.message.edit_text("🛒 Корзина пуста.")
+        await callback.message.edit_text("🛒 Корзина пуста.", reply_markup=back_to_menu_kb())
         await callback.answer()
         return
 
@@ -101,7 +108,7 @@ async def view_cart(callback: CallbackQuery, state: FSMContext):
     await db.close()
 
     if not items:
-        await callback.message.edit_text("🛒 Ваша корзина пуста.")
+        await callback.message.edit_text("🛒 Ваша корзина пуста.", reply_markup=back_to_menu_kb())
         await callback.answer()
         return
 
@@ -167,6 +174,7 @@ async def update_quantity(message: Message, state: FSMContext):
                 chat_id=message.chat.id,
                 message_id=msg_id,
                 text="🛒 Корзина пуста.",
+                reply_markup=back_to_menu_kb(),
                 parse_mode="HTML"
             )
 
@@ -310,7 +318,7 @@ async def remove_selected_item(callback: CallbackQuery):
     await db.close()
 
     if not items:
-        await callback.message.edit_text("🛒 Корзина пуста.")
+        await callback.message.edit_text("🛒 Корзина пуста.", reply_markup=back_to_menu_kb())
         await callback.answer("✅ Товар удалён.")
         return
 

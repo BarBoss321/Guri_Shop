@@ -6,6 +6,7 @@ from services.db import get_db
 from collections import defaultdict
 import asyncio
 from config import ADMIN_ID
+from handlers.cart_view import back_to_menu_kb
 # 👉 вынеси в config.py и импортируй оттуда
 
 router = Router()
@@ -169,7 +170,7 @@ async def handle_company_selection(callback: CallbackQuery, state: FSMContext):
     if not rows:
         await db.close()
         await state.clear()
-        await callback.message.edit_text("🛒 Корзина пуста.")
+        await callback.message.edit_text("🛒 Корзина пуста.", reply_markup=back_to_menu_kb())
         await callback.answer()
         return
 
@@ -209,7 +210,7 @@ async def handle_company_selection(callback: CallbackQuery, state: FSMContext):
     await db.commit()
     await db.close()
 
-    await callback.message.edit_text("✅ Заявка отправлена администратору. Корзина очищена.")
+    await callback.message.edit_text("✅ Заявка отправлена администратору. Корзина очищена.", reply_markup=back_to_menu_kb())
     await state.clear()
     await callback.answer()
 
