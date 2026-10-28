@@ -240,6 +240,29 @@ def plan_import(db_path, path) -> ImportPlan:
     for r in plan.rows:
         if r["id"] is not None and r["id"] not in existing:
             plan.errors.append(f"Строка {r['row']}: товара с ID {r['id']} нет в базе. Для нового товара оставьте ID пустым.")
+
+    # сбитый столбец ID (Excel перенумеровал при вставке строк): ID указывает на один
+    # товар, а название в строке — другого существующего товара. Без этой проверки
+    # товары молча переименуются, и в истории заказов окажутся чужие названия
+    id_by_name = {}
+    for iid, (name, *_rest) in existing.items():
+        id_by_name.setdefault(_key(name), iid)
+    shifted = [
+        r for r in plan.rows
+        if r["id"] in existing
+        and _key(existing[r["id"]][0]) != _key(r["name"])
+        and id_by_name.get(_key(r["name"]), r["id"]) != r["id"]
+    ]
+    for r in shifted[:5]:
+        plan.errors.append(
+            f"Строка {r['row']}: ID {r['id']} — это «{_clean(existing[r['id']][0])}», а в строке «{r['name']}» "
+            f"(его ID {id_by_name[_key(r['name'])]})."
+        )
+    if shifted:
+        plan.errors.append(
+            f"Похоже, столбец ID сбился (таких строк: {len(shifted)}) — Excel перенумеровал его при вставке строк. "
+            "Возьмите свежий файл через /catalog и перенесите правки; у новых строк ID оставляйте пустым."
+        )
     if plan.errors:
         return plan
 
