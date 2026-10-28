@@ -83,10 +83,10 @@ async def process_quantity(message: Message, state: FSMContext):
     await db.commit()
 
     # Получаем подкатегории и товары
-    subcats = await db.execute("SELECT id, name FROM categories WHERE parent_id = ?", (category_id,))
+    subcats = await db.execute("SELECT id, name FROM categories WHERE parent_id = ? AND active = 1 ORDER BY pos, id", (category_id,))
     subcats = await subcats.fetchall()
 
-    items = await db.execute("SELECT id, name FROM items WHERE category_id = ?", (category_id,))
+    items = await db.execute("SELECT id, name FROM items WHERE category_id = ? AND active = 1 ORDER BY pos, id", (category_id,))
     items = await items.fetchall()
     await db.close()
 

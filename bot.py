@@ -16,7 +16,7 @@ from aiogram.fsm.storage.redis import RedisStorage, DefaultKeyBuilder
 import redis.asyncio as aioredis
 from handlers import history_handlers, search_handlers
 from handlers import user_handlers, catalog_handlers, cart_handlers, cart_view
-from admin import admin_handlers, order_replies
+from admin import admin_handlers, order_replies, catalog_admin
 from filters.access import AccessMiddleware
 from services.db import ensure_schema, abs_db_path
 
@@ -64,6 +64,7 @@ async def main():
     dp.include_router(user_handlers.router)
     dp.include_router(admin_handlers.router)
     dp.include_router(order_replies.router)
+    dp.include_router(catalog_admin.router)
     dp.include_router(catalog_handlers.router)
     dp.include_router(cart_handlers.router)
     dp.include_router(cart_view.router)

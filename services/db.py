@@ -85,6 +85,16 @@ async def ensure_schema():
     # индексы для каталога: без них каждое нажатие кнопки — полный перебор таблиц
     await db.execute("CREATE INDEX IF NOT EXISTS idx_categories_parent ON categories(parent_id);")
     await db.execute("CREATE INDEX IF NOT EXISTS idx_items_category ON items(category_id);")
+
+    # active — скрытые товары/разделы (убранные из файла ассортимента) не показываются,
+    # но остаются в базе, чтобы история заказов не ломалась; pos — порядок как в файле
+    for table in ("items", "categories"):
+        cur = await db.execute(f"PRAGMA table_info({table})")
+        columns = {row[1] for row in await cur.fetchall()}
+        if "active" not in columns:
+            await db.execute(f"ALTER TABLE {table} ADD COLUMN active INTEGER NOT NULL DEFAULT 1")
+        if "pos" not in columns:
+            await db.execute(f"ALTER TABLE {table} ADD COLUMN pos INTEGER NOT NULL DEFAULT 0")
     await db.commit()
 
     # Диагностика: покажем, какие таблицы реально есть

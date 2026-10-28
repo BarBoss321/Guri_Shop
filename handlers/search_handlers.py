@@ -15,7 +15,7 @@ async def _load_items():
     db = await get_db()
     cur = await db.execute("SELECT id, COALESCE(parent_id, 0), name FROM categories")
     cats = {cid: (parent, name) for cid, parent, name in await cur.fetchall()}
-    cur = await db.execute("SELECT id, name, category_id FROM items")
+    cur = await db.execute("SELECT id, name, category_id FROM items WHERE active = 1")
     rows = await cur.fetchall()
     await db.close()
 

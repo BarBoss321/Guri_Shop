@@ -22,7 +22,8 @@ async def admin_panel(message: Message, state: FSMContext):
         "Админ-панель\n\n"
         "/add @login — дать доступ\n"
         "/rem @login — забрать доступ\n"
-        "/list — кто имеет доступ",
+        "/list — кто имеет доступ\n"
+        "/catalog — ассортимент в Excel (поправить и прислать обратно)",
         reply_markup=keyboard
     )
 

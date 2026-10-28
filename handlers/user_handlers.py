@@ -18,7 +18,7 @@ async def _build_root_menu():
         return None
 
     root_id = row[0]
-    cur = await db.execute("SELECT id, name FROM categories WHERE parent_id = ?", (root_id,))
+    cur = await db.execute("SELECT id, name FROM categories WHERE parent_id = ? AND active = 1 ORDER BY pos, id", (root_id,))
     cats = await cur.fetchall()
     await db.close()
 

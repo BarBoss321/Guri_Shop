@@ -395,8 +395,8 @@ async def back_to_menu(callback: CallbackQuery, state: FSMContext):
     # дети корня
     cur = await db.execute("""
         SELECT id, name FROM categories
-        WHERE parent_id = ?
-        ORDER BY id
+        WHERE parent_id = ? AND active = 1
+        ORDER BY pos, id
     """, (root_id,))
     categories = await cur.fetchall()
     await db.close()

@@ -20,9 +20,9 @@ async def handle_category(callback: CallbackQuery):
         current_parent_id = int(row[0]) if row else 0
 
         # подкатегории и товары
-        cur = await db.execute("SELECT id, name FROM categories WHERE parent_id = ?", (cat_id,))
+        cur = await db.execute("SELECT id, name FROM categories WHERE parent_id = ? AND active = 1 ORDER BY pos, id", (cat_id,))
         subcats = await cur.fetchall()
-        cur = await db.execute("SELECT id, name FROM items WHERE category_id = ?", (cat_id,))
+        cur = await db.execute("SELECT id, name FROM items WHERE category_id = ? AND active = 1 ORDER BY pos, id", (cat_id,))
         items = await cur.fetchall()
 
         buttons = []
