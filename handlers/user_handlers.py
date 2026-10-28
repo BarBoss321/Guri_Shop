@@ -27,6 +27,7 @@ async def _build_root_menu():
         for cid, name in cats
     ]
 
+    buttons.append([InlineKeyboardButton(text="🔍 Поиск товара", callback_data="search_help")])
     # Объединяем в одну строку
     buttons.append([
         InlineKeyboardButton(text="🗂️ История заказов", callback_data="history_orders"),

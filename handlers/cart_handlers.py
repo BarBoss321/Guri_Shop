@@ -5,8 +5,10 @@ from states.cart_states import CartStates
 from services.db import get_db
 from collections import defaultdict
 import asyncio
+import html
 from config import ADMIN_ID
 from handlers.cart_view import back_to_menu_kb
+from admin.order_replies import order_reply_kb
 # 👉 вынеси в config.py и импортируй оттуда
 
 router = Router()
@@ -179,38 +181,45 @@ async def handle_company_selection(callback: CallbackQuery, state: FSMContext):
     for item_id, item_name, qty, supplier in rows:
         grouped[(supplier or "❓ Без поставщика")].append(f"{item_name} — {qty} шт.")
 
-    text = (
-        f"🧑‍💼Новая заявка от <b><code>{user_id}</code></b>\n"
-        f"📦<b>ООО {company_name}</b>\n\n"
-    )
-    for supplier, goods in grouped.items():
-        text += f"<b>{supplier}</b>:\n" + "\n".join(f"▪️ {g}" for g in goods) + "\n\n"
-
-    # отправляем админу ОДИН раз
-    await callback.bot.send_message(chat_id=ADMIN_ID, text=text, parse_mode="HTML")
-
-    # 👉 перенос позиций в историю заказов (orders)
+    # 👉 перенос позиций в историю заказов (orders); номер заявки = первый id вставленных строк,
+    # так же нумерует «История заказов»
+    cur = await db.execute("SELECT COALESCE(MAX(id), 0) FROM orders")
+    last_id = (await cur.fetchone())[0]
     await db.execute("""
         INSERT INTO orders(user_id, item_id, quantity)
         SELECT c.user_id, c.item_id, c.quantity
         FROM cart c
         WHERE c.user_id = ?
     """, (user_id,))
-    await db.commit()
-
-    # (опционально) самопроверка: сколько записей у пользователя за сегодня
-    cur = await db.execute(
-        "SELECT COUNT(*) FROM orders WHERE user_id = ? AND DATE(order_date)=DATE('now')",
-        (user_id,)
-    )
-    print("orders inserted today for", user_id, "=", (await cur.fetchone())[0])
+    cur = await db.execute("SELECT MIN(id) FROM orders WHERE id > ? AND user_id = ?", (last_id, user_id))
+    order_no = (await cur.fetchone())[0]
 
     # чистим корзину
     await db.execute("DELETE FROM cart WHERE user_id = ?", (user_id,))
     await db.commit()
     await db.close()
 
-    await callback.message.edit_text("✅ Заявка отправлена администратору. Корзина очищена.", reply_markup=back_to_menu_kb())
+    who = html.escape(callback.from_user.full_name)
+    if callback.from_user.username:
+        who += f" (@{callback.from_user.username})"
+    text = (
+        f"🧑‍💼Новая заявка <b>№{order_no}</b> от <b>{who}</b> · <code>{user_id}</code>\n"
+        f"📦<b>ООО {company_name}</b>\n\n"
+    )
+    for supplier, goods in grouped.items():
+        text += f"<b>{supplier}</b>:\n" + "\n".join(f"▪️ {g}" for g in goods) + "\n\n"
+
+    # отправляем админу ОДИН раз, с кнопками ответа
+    await callback.bot.send_message(
+        chat_id=ADMIN_ID, text=text, parse_mode="HTML",
+        reply_markup=order_reply_kb(user_id, order_no)
+    )
+
+    await callback.message.edit_text(
+        f"✅ Заявка №{order_no} отправлена администратору. Корзина очищена.\n"
+        f"Когда администратор её рассмотрит, придёт уведомление.",
+        reply_markup=back_to_menu_kb()
+    )
     await state.clear()
     await callback.answer()
 

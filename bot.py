@@ -14,9 +14,9 @@ from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.redis import RedisStorage, DefaultKeyBuilder
 import redis.asyncio as aioredis
-from handlers import history_handlers
+from handlers import history_handlers, search_handlers
 from handlers import user_handlers, catalog_handlers, cart_handlers, cart_view
-from admin import admin_handlers
+from admin import admin_handlers, order_replies
 from filters.access import AccessMiddleware
 from services.db import ensure_schema, abs_db_path
 
@@ -63,10 +63,13 @@ async def main():
     # Роутеры
     dp.include_router(user_handlers.router)
     dp.include_router(admin_handlers.router)
+    dp.include_router(order_replies.router)
     dp.include_router(catalog_handlers.router)
     dp.include_router(cart_handlers.router)
     dp.include_router(cart_view.router)
     dp.include_router(history_handlers.router)
+    # последним: ловит любой текст как поисковый запрос
+    dp.include_router(search_handlers.router)
 
     dp.startup.register(on_startup)
 
