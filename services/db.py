@@ -85,13 +85,6 @@ async def ensure_schema():
     # индексы для каталога: без них каждое нажатие кнопки — полный перебор таблиц
     await db.execute("CREATE INDEX IF NOT EXISTS idx_categories_parent ON categories(parent_id);")
     await db.execute("CREATE INDEX IF NOT EXISTS idx_items_category ON items(category_id);")
-    # какие мемы уже отправлялись админу — чтобы не повторяться
-    await db.execute("""
-        CREATE TABLE IF NOT EXISTS sent_memes (
-            key     TEXT PRIMARY KEY,
-            sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    """)
     await db.commit()
 
     # Диагностика: покажем, какие таблицы реально есть
