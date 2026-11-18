@@ -8,7 +8,9 @@ import asyncio
 import html
 from config import ADMIN_ID
 from handlers.cart_view import back_to_menu_kb
-from admin.order_replies import order_reply_kb
+from admin.order_replies import order_reply_kb, send_supplier_drafts
+from services.order_rules import shortfalls, shortfall_text
+import logging
 
 router = Router()
 
@@ -186,6 +188,15 @@ async def handle_company_selection(callback: CallbackQuery, state: FSMContext):
         await callback.answer()
         return
 
+    # повторная проверка минимумов: корзину могли поменять после «Подтвердить заказ»
+    short = shortfalls([(supplier, qty) for _, _, qty, supplier in rows])
+    if short:
+        await db.close()
+        await state.clear()
+        await callback.message.edit_text(shortfall_text(short), reply_markup=_shortfall_kb())
+        await callback.answer()
+        return
+
     # группировка для админа
     grouped = defaultdict(list)
     for item_id, item_name, qty, supplier in rows:
@@ -217,13 +228,20 @@ async def handle_company_selection(callback: CallbackQuery, state: FSMContext):
         f"📦<b>{html.escape(COMPANIES.get(company_name, company_name))}</b>\n\n"
     )
     for supplier, goods in grouped.items():
-        text += f"<b>{supplier}</b>:\n" + "\n".join(f"▪️ {g}" for g in goods) + "\n\n"
+        # экранируем: «Moët & Chandon» без этого ломает HTML, и заявка не доходит до админа
+        text += f"<b>{html.escape(supplier)}</b>:\n" + "\n".join(f"▪️ {html.escape(g)}" for g in goods) + "\n\n"
 
     # отправляем админу ОДИН раз, с кнопками ответа
     await callback.bot.send_message(
         chat_id=ADMIN_ID, text=text, parse_mode="HTML",
         reply_markup=order_reply_kb(user_id, order_no)
     )
+    # и готовые тексты для каждого поставщика — скопировать и отправить в MAX
+    try:
+        await send_supplier_drafts(callback.bot, ADMIN_ID, order_no,
+                                   COMPANIES.get(company_name, company_name), grouped)
+    except Exception:
+        logging.exception("не удалось отправить черновики по поставщикам")
 
     await callback.message.edit_text(
         f"✅ Заявка №{order_no} отправлена администратору. Корзина очищена.\n"
@@ -241,8 +259,31 @@ async def handle_company_selection(callback: CallbackQuery, state: FSMContext):
 
 
 
+async def _cart_shortfalls(user_id: int):
+    db = await get_db()
+    cur = await db.execute("""
+        SELECT i.supplier, c.quantity FROM cart c JOIN items i ON i.id = c.item_id WHERE c.user_id = ?
+    """, (user_id,))
+    rows = await cur.fetchall()
+    await db.close()
+    return shortfalls(rows)
+
+
+def _shortfall_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🛒 Корзина", callback_data="view_cart"),
+         InlineKeyboardButton(text="🔙 В меню", callback_data="back_to_menu")],
+    ])
+
+
 @router.callback_query(F.data == "submit_cart")
 async def submit_cart(callback: CallbackQuery, state: FSMContext):
+    short = await _cart_shortfalls(callback.from_user.id)
+    if short:
+        await callback.message.edit_text(shortfall_text(short), reply_markup=_shortfall_kb())
+        await callback.answer()
+        return
+
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         *([InlineKeyboardButton(text=title, callback_data=f"company_{key}")] for key, title in COMPANIES.items()),
         [InlineKeyboardButton(text="🔙 Назад в меню", callback_data="back_to_menu")],

@@ -1,10 +1,17 @@
+import asyncio
 import html
+from datetime import datetime
 
 from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, CopyTextButton
 from config import ADMIN_ID
+from services.reminder import TZ
+
+COPY_LIMIT = 256          # больше Telegram в кнопку «Скопировать» не берёт
+DELETE_AFTER = 10         # секунд после «✅ Отправил»
+_pending_deletes = set()  # ссылки на задачи удаления, чтобы их не собрал сборщик мусора
 
 router = Router()
 router.message.filter(F.from_user.id == ADMIN_ID)
@@ -20,6 +27,54 @@ def order_reply_kb(user_id: int, order_no: int) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="✅ Принят полностью", callback_data=f"ordok_{user_id}_{order_no}")],
         [InlineKeyboardButton(text="📝 Принят с замечаниями", callback_data=f"ordnote_{user_id}_{order_no}")],
     ])
+
+
+# ---------- готовые тексты для поставщиков (вставить в MAX и отправить) ----------
+
+def supplier_draft(company_title: str, goods: list[str]) -> str:
+    date = datetime.now(TZ).strftime("%d.%m")
+    return (f"Добрый день! Заявка от {company_title} ({date}):\n"
+            + "\n".join(f"▪️ {g}" for g in goods) + "\nСпасибо!")
+
+
+async def send_supplier_drafts(bot, chat_id: int, order_no: int, company_title: str, grouped: dict):
+    """По сообщению на поставщика: текст заявки, «📋 Скопировать» и «✅ Отправил»."""
+    for supplier, goods in grouped.items():
+        draft = supplier_draft(company_title, goods)
+        header = f"📦 <b>{html.escape(supplier)}</b> · заявка №{order_no}\n\n"
+        buttons = []
+        if len(draft) <= COPY_LIMIT:
+            body = html.escape(draft)
+            buttons.append([InlineKeyboardButton(text="📋 Скопировать", copy_text=CopyTextButton(text=draft))])
+        else:
+            # длинный список в кнопку не влезает — блок <pre> тоже копируется одним нажатием
+            body = f"<pre>{html.escape(draft)}</pre>\n<i>Нажмите на текст — он скопируется.</i>"
+        buttons.append([InlineKeyboardButton(text="✅ Отправил", callback_data="draftdone")])
+        await bot.send_message(chat_id, header + body,
+                               reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+
+
+async def _delete_later(message: Message, delay: int):
+    await asyncio.sleep(delay)
+    try:
+        await message.delete()
+    except Exception:
+        pass  # уже удалено руками или прошло больше 48 часов
+
+
+@router.callback_query(F.data == "draftdone")
+async def draft_done(callback: CallbackQuery):
+    await callback.answer(f"Удалю через {DELETE_AFTER} секунд")
+    try:
+        await callback.message.edit_text(
+            callback.message.html_text + f"\n\n✅ <b>Отправлено</b> — сообщение удалится через {DELETE_AFTER} сек.",
+            reply_markup=None
+        )
+    except Exception:
+        pass
+    task = asyncio.create_task(_delete_later(callback.message, DELETE_AFTER))
+    _pending_deletes.add(task)
+    task.add_done_callback(_pending_deletes.discard)
 
 
 def _parse(data: str) -> tuple[int, int]:
