@@ -1,4 +1,5 @@
 import asyncio
+import html
 
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
@@ -9,10 +10,11 @@ router = Router()
 # заметный разделитель между заказами
 ORDER_SPLIT = "\n<b>───────────────────</b>\n\n"   # 24 символа
 
-def format_order_block(order_no: int, created_at: str, items_join: str) -> str:
+def format_order_block(order_no: int, created_at: str, items_join: str, company: str | None = None) -> str:
     """
     items_join: 'Название : Кол-во || Название : Кол-во ...'
     created_at: 'YYYY-MM-DD HH:MM:SS' — берём только дату.
+    company: юрлицо заявки (у заявок до ноября 2026 не записано).
     """
     order_date = created_at.split(" ")[0] if created_at else "—"
 
@@ -23,17 +25,21 @@ def format_order_block(order_no: int, created_at: str, items_join: str) -> str:
             if not raw:
                 continue
             if ":" in raw:
-                name, qty = raw.split(":", 1)
+                # rsplit: двоеточие может быть и в самом названии
+                name, qty = raw.rsplit(":", 1)
                 name = name.strip()
                 qty = qty.strip()
             else:
                 name, qty = raw.strip(), "1"
-            lines.append(f"• {name} × {qty}")
+            # экранируем: «Moët & Chandon» иначе ломает HTML и всю историю
+            lines.append(f"• {html.escape(name)} × {qty}")
 
     body = "\n".join(lines) if lines else "• —"
 
-    # Заголовок — в одну строку: номер + дата
+    # Заголовок — в одну строку: номер + дата, ниже — юрлицо
     header = f"📦 <b>Заказ №{order_no}</b> · 🗓 {order_date}"
+    if company:
+        header += f"\n🏢 {html.escape(company)}"
 
     return f"{header}\n{body}"
 
@@ -52,7 +58,7 @@ async def show_history(c: CallbackQuery):
         await c.answer()
         return
 
-    blocks = [format_order_block(no, dt, join) for (no, dt, join) in rows]
+    blocks = [format_order_block(no, dt, join, company) for (no, dt, join, company) in rows]
     text = "🧾 <b>Ваши последние заявки:</b>\n\n" + ORDER_SPLIT.join(blocks)
 
     await c.message.edit_text(

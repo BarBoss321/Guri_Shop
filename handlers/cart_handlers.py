@@ -9,7 +9,7 @@ import html
 from config import ADMIN_ID
 from handlers.cart_view import back_to_menu_kb
 from admin.order_replies import order_reply_kb, send_supplier_drafts
-from services.order_rules import shortfalls, shortfall_text
+from services.order_rules import shortfalls, supplier_key, MIN_RULES_HINT
 import logging
 
 router = Router()
@@ -193,7 +193,8 @@ async def handle_company_selection(callback: CallbackQuery, state: FSMContext):
     if short:
         await db.close()
         await state.clear()
-        await callback.message.edit_text(shortfall_text(short), reply_markup=_shortfall_kb())
+        text, kb = await _shortfall_message(user_id, short)
+        await callback.message.edit_text(text, reply_markup=kb)
         await callback.answer()
         return
 
@@ -207,11 +208,11 @@ async def handle_company_selection(callback: CallbackQuery, state: FSMContext):
     cur = await db.execute("SELECT COALESCE(MAX(id), 0) FROM orders")
     last_id = (await cur.fetchone())[0]
     await db.execute("""
-        INSERT INTO orders(user_id, item_id, quantity)
-        SELECT c.user_id, c.item_id, c.quantity
+        INSERT INTO orders(user_id, item_id, quantity, company)
+        SELECT c.user_id, c.item_id, c.quantity, ?
         FROM cart c
         WHERE c.user_id = ?
-    """, (user_id,))
+    """, (COMPANIES.get(company_name, company_name), user_id))
     cur = await db.execute("SELECT MIN(id) FROM orders WHERE id > ? AND user_id = ?", (last_id, user_id))
     order_no = (await cur.fetchone())[0]
 
@@ -269,18 +270,67 @@ async def _cart_shortfalls(user_id: int):
     return shortfalls(rows)
 
 
-def _shortfall_kb() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🛒 Корзина", callback_data="view_cart"),
-         InlineKeyboardButton(text="🔙 В меню", callback_data="back_to_menu")],
+MAX_OFFER_BUTTONS = 40   # кнопок с товарами в сообщении про минимум
+
+
+async def _shortfall_message(user_id: int, short) -> tuple[str, InlineKeyboardMarkup]:
+    """Что не набрано, что уже в корзине и кнопки с остальными товарами этих поставщиков."""
+    db = await get_db()
+    cur = await db.execute("SELECT id, COALESCE(parent_id, 0) FROM categories")
+    parent = dict(await cur.fetchall())
+    cur = await db.execute("SELECT id, name, supplier, category_id FROM items WHERE active = 1 ORDER BY pos, id")
+    items = await cur.fetchall()
+    cur = await db.execute(
+        "SELECT i.name, i.supplier, c.quantity FROM cart c JOIN items i ON i.id = c.item_id WHERE c.user_id = ?",
+        (user_id,))
+    in_cart = await cur.fetchall()
+    await db.close()
+
+    per_supplier = max(6, MAX_OFFER_BUTTONS // len(short))
+    lines, buttons = [], []
+    for name, got, need in short:
+        key = supplier_key(name)
+        cart_names = {n for n, s, _ in in_cart if supplier_key(s) == key}
+        lines.append(f"\n▪️ <b>{html.escape(name)}</b>: {got} из {need} шт. — добавьте ещё {need - got}")
+        lines.append("   В корзине: " + ", ".join(
+            f"{html.escape(n)} × {q}" for n, s, q in in_cart if supplier_key(s) == key))
+        offer, seen = [], set()
+        for item_id, item_name, supplier, cat_id in items:
+            # одинаковые товары в разных разделах (бары / «Настроение») — показываем один раз
+            if supplier_key(supplier) != key or item_name in seen:
+                continue
+            seen.add(item_name)
+            offer.append((item_id, item_name, cat_id))
+        if offer:
+            lines.append(f"   Товары этого поставщика — кнопки ниже ({len(offer)}):")
+        for item_id, item_name, cat_id in offer[:per_supplier]:
+            mark = "✅ " if item_name in cart_names else "➕ "
+            p = parent.get(cat_id, 0)
+            buttons.append([InlineKeyboardButton(
+                text=f"{mark}{item_name} · {name}"[:60],
+                callback_data=f"item_{item_id}:{cat_id}:{p}:{parent.get(p, 0)}"
+            )])
+        if len(offer) > per_supplier:
+            lines.append(f"   …и ещё {len(offer) - per_supplier} — найдите через поиск, просто написав название.")
+
+    buttons.append([
+        InlineKeyboardButton(text="🛒 Корзина", callback_data="view_cart"),
+        InlineKeyboardButton(text="🔙 В меню", callback_data="back_to_menu"),
     ])
+    text = (
+        "⚠️ <b>Не набран минимальный заказ у поставщика</b>\n" + "\n".join(lines) +
+        "\n\nНажмите на товар, чтобы добавить его, или уберите позиции этого поставщика из корзины.\n"
+        f"<i>{MIN_RULES_HINT}</i>"
+    )
+    return text, InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
 @router.callback_query(F.data == "submit_cart")
 async def submit_cart(callback: CallbackQuery, state: FSMContext):
     short = await _cart_shortfalls(callback.from_user.id)
     if short:
-        await callback.message.edit_text(shortfall_text(short), reply_markup=_shortfall_kb())
+        text, kb = await _shortfall_message(callback.from_user.id, short)
+        await callback.message.edit_text(text, reply_markup=kb)
         await callback.answer()
         return
 

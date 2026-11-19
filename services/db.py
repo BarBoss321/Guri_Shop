@@ -29,7 +29,8 @@ def get_last_grouped_orders(user_id: int, limit: int = 3):
         SELECT
             MIN(o.id)  AS order_no,
             o.order_date AS created_at,
-            GROUP_CONCAT(i.name || ' : ' || o.quantity, '||') AS items_join
+            GROUP_CONCAT(i.name || ' : ' || o.quantity, '||') AS items_join,
+            MAX(o.company) AS company
         FROM orders o
         JOIN items i ON i.id = o.item_id
         WHERE o.user_id = ?
@@ -95,6 +96,10 @@ async def ensure_schema():
             await db.execute(f"ALTER TABLE {table} ADD COLUMN active INTEGER NOT NULL DEFAULT 1")
         if "pos" not in columns:
             await db.execute(f"ALTER TABLE {table} ADD COLUMN pos INTEGER NOT NULL DEFAULT 0")
+    # на какое юрлицо оформлена заявка — показываем в «Истории заказов»
+    cur = await db.execute("PRAGMA table_info(orders)")
+    if "company" not in {row[1] for row in await cur.fetchall()}:
+        await db.execute("ALTER TABLE orders ADD COLUMN company TEXT")
     await db.commit()
 
     # Диагностика: покажем, какие таблицы реально есть
